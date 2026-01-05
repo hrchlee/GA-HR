@@ -4,13 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GA KOREA 인사관리시스템</title>
+    <!-- 
+        버전: v2.1.0 - 2026-01-04
+        변경사항:
+        - HTTPS 강제 리다이렉트 제거 (GitHub Pages 호환)
+        - 재직정보 법인/부서명 실제 조회 표시
+        - 사번 자동생성 제거, 필수 입력으로 변경
+        - 검색 버튼 추가 및 필터링 기능 개선
+        - 임원/자문/고문 VIP 우선 정렬
+    -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script>
-    // HTTPS 강제 리다이렉트
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-        location.replace('https:' + window.location.href.substring(window.location.protocol.length));
-    }
-    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Malgun Gothic', sans-serif; background: #f5f6f8; font-size: 12px; }
@@ -75,6 +78,7 @@
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #1976d2; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .radio-group { display: flex; gap: 10px; }
+        .context-menu-item:hover { background: #f5f9ff; color: #1976d2; }
     </style>
 </head>
 <body>
@@ -115,8 +119,15 @@
             <button id="tab-employee" class="tab-btn active">
                 직원 관리
                 <div class="dropdown-menu">
-                    <div class="dropdown-item" onclick="switchMainTab('employee-info')">임직원 정보</div>
+                    <div class="dropdown-item" onclick="switchMainTab('employee-info')">임직원 관리</div>
+                    <div class="dropdown-item" onclick="switchMainTab('salary-info')">연봉정보</div>
+                </div>
+            </button>
+            <button id="tab-employee-data" class="tab-btn">
+                임직원 정보
+                <div class="dropdown-menu">
                     <div class="dropdown-item" onclick="switchMainTab('employee-roster')">임직원 명부</div>
+                    <div class="dropdown-item" onclick="switchMainTab('org-chart')">조직도</div>
                     <div class="dropdown-item" onclick="switchMainTab('employee-record')">인사기록카드</div>
                 </div>
             </button>
@@ -179,31 +190,33 @@
                 </div>
 
                 <div style="overflow-x: auto;">
-                    <table id="roster-table" style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <table id="roster-table" style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 11px;">
                         <thead style="background: #f5f5f5;">
                             <tr>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">근무지</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">부서</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">성명</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">직위</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">직급</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">직무</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">소속법인</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">주민등록번호</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">생년월일</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">나이</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">성별</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">최초입사일</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">근속기간</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">최종학력</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">연락처</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">이메일</th>
-                                <th style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">주소</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap; width: 40px;">No</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">근무지</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">부서</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">성명</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">직위</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">직급</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">직무</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">소속법인</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">주민등록번호</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">생년월일</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">나이</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">성별</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">최초입사일</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">근속기간</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">연봉</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">최종학력</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">연락처</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">이메일</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">주소</th>
                             </tr>
                         </thead>
                         <tbody id="roster-tbody">
                             <tr>
-                                <td colspan="17" style="padding: 40px; text-align: center; color: #999;">데이터가 없습니다</td>
+                                <td colspan="19" style="padding: 40px; text-align: center; color: #999;">데이터가 없습니다</td>
                             </tr>
                         </tbody>
                     </table>
@@ -216,6 +229,227 @@
             <div class="main-content" style="padding: 30px;">
                 <h2>인사기록카드</h2>
                 <div class="empty-state"><p>준비 중입니다</p></div>
+            </div>
+        </div>
+
+        <!-- 조직도 탭 -->
+        <div id="org-chart-tab" class="layout" style="display: none;">
+            <div style="display: flex; height: calc(100vh - 60px); width: 100%;">
+                <!-- 조직도 메인 영역 -->
+                <div id="org-chart-main" style="flex: 1; background: #fff; position: relative; overflow: auto;">
+                    <!-- 상단 정보 -->
+                    <div style="display: flex; justify-content: space-between; padding: 15px 30px; border-bottom: 1px solid #e0e0e0;">
+                        <div id="org-chart-info" style="font-size: 12px; line-height: 1.6;">
+                            <div>기준일 : <span id="org-chart-date"></span></div>
+                            <div>총인원 : <span id="org-chart-total">0</span>명</div>
+                            <div>특이사항 : <span id="org-chart-special">-</span></div>
+                        </div>
+                        <div style="text-align: center; flex: 1;">
+                            <h1 style="font-size: 24px; font-weight: bold; color: #333; margin: 0;">GA KOREA 조직도</h1>
+                        </div>
+                        <div style="font-size: 12px; text-align: right;">
+                            <div>기준일 : <span id="org-chart-date2"></span></div>
+                            <button onclick="showOrgStyleModal()" style="margin-top: 8px; padding: 6px 12px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">⚙️ 양식 수정</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 조직도 캔버스 영역 -->
+                    <div id="org-chart-canvas" style="width: 100%; min-height: 1500px; position: relative; padding: 20px;" oncontextmenu="showOrgChartContextMenu(event); return false;">
+                        <!-- SVG 연결선 레이어 -->
+                        <svg id="org-chart-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;"></svg>
+                        <!-- 조직도 요소들이 여기에 동적으로 생성됨 -->
+                    </div>
+                </div>
+                
+                <!-- 임직원 패널 (기본 숨김) -->
+                <div id="org-chart-employee-panel" style="width: 280px; background: #f5f5f5; border-left: 1px solid #ddd; display: none; flex-direction: column;">
+                    <div style="padding: 15px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; font-size: 14px;">임직원 목록</h3>
+                        <button onclick="hideEmployeePanel()" style="background: none; border: none; cursor: pointer; font-size: 18px;">✕</button>
+                    </div>
+                    <div style="padding: 10px;">
+                        <input type="text" id="org-employee-search" placeholder="이름 검색..." oninput="filterOrgEmployees()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div id="org-employee-list" style="flex: 1; overflow-y: auto; padding: 10px;">
+                        <!-- 임직원 목록 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 빈공간 우클릭 컨텍스트 메뉴 -->
+            <div id="org-context-menu" style="display: none; position: fixed; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 1000;">
+                <div class="context-menu-item" onclick="showCreateDeptModal()" style="padding: 10px 20px; cursor: pointer; font-size: 13px;">부서 생성</div>
+                <div class="context-menu-item" onclick="showEmployeePanel()" style="padding: 10px 20px; cursor: pointer; font-size: 13px; border-top: 1px solid #eee;">임직원 불러오기</div>
+            </div>
+            
+            <!-- 부서 우클릭 컨텍스트 메뉴 -->
+            <div id="dept-context-menu" style="display: none; position: fixed; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 1000;">
+                <div class="context-menu-item" onclick="showCreateTeamModal()" style="padding: 10px 20px; cursor: pointer; font-size: 13px;">하위 팀 생성</div>
+                <div class="context-menu-item" onclick="editDept()" style="padding: 10px 20px; cursor: pointer; font-size: 13px; border-top: 1px solid #eee;">부서 수정</div>
+                <div class="context-menu-item" onclick="deleteSelectedDept()" style="padding: 10px 20px; cursor: pointer; font-size: 13px; border-top: 1px solid #eee; color: #d32f2f;">부서 삭제</div>
+            </div>
+            
+            <!-- 부서 생성 모달 -->
+            <div id="create-dept-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; justify-content: center; align-items: center;">
+                <div style="background: white; padding: 25px; border-radius: 8px; width: 380px;">
+                    <h3 id="dept-modal-title" style="margin: 0 0 20px 0;">부서 생성</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px;">부서명</label>
+                        <input type="text" id="new-dept-name" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px;">레벨 (1~10)</label>
+                        <select id="new-dept-level" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="1">레벨 1 (최상위)</option>
+                            <option value="2">레벨 2</option>
+                            <option value="3">레벨 3</option>
+                            <option value="4">레벨 4</option>
+                            <option value="5">레벨 5</option>
+                            <option value="6">레벨 6</option>
+                            <option value="7">레벨 7</option>
+                            <option value="8">레벨 8</option>
+                            <option value="9">레벨 9</option>
+                            <option value="10">레벨 10 (최하위)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px;">색상</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <div class="color-option" data-color="#1976d2" onclick="selectDeptColor('#1976d2')" style="width: 30px; height: 30px; background: #1976d2; border-radius: 4px; cursor: pointer; border: 2px solid transparent;"></div>
+                            <div class="color-option" data-color="#388e3c" onclick="selectDeptColor('#388e3c')" style="width: 30px; height: 30px; background: #388e3c; border-radius: 4px; cursor: pointer; border: 2px solid transparent;"></div>
+                            <div class="color-option" data-color="#f57c00" onclick="selectDeptColor('#f57c00')" style="width: 30px; height: 30px; background: #f57c00; border-radius: 4px; cursor: pointer; border: 2px solid transparent;"></div>
+                            <div class="color-option" data-color="#d32f2f" onclick="selectDeptColor('#d32f2f')" style="width: 30px; height: 30px; background: #d32f2f; border-radius: 4px; cursor: pointer; border: 2px solid transparent;"></div>
+                            <div class="color-option" data-color="#7b1fa2" onclick="selectDeptColor('#7b1fa2')" style="width: 30px; height: 30px; background: #7b1fa2; border-radius: 4px; cursor: pointer; border: 2px solid transparent;"></div>
+                            <div class="color-option" data-color="#455a64" onclick="selectDeptColor('#455a64')" style="width: 30px; height: 30px; background: #455a64; border-radius: 4px; cursor: pointer; border: 2px solid transparent;"></div>
+                            <div class="color-option" data-color="#00796b" onclick="selectDeptColor('#00796b')" style="width: 30px; height: 30px; background: #00796b; border-radius: 4px; cursor: pointer; border: 2px solid transparent;"></div>
+                            <div class="color-option" data-color="#5d4037" onclick="selectDeptColor('#5d4037')" style="width: 30px; height: 30px; background: #5d4037; border-radius: 4px; cursor: pointer; border: 2px solid transparent;"></div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button onclick="closeCreateDeptModal()" style="padding: 8px 20px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">취소</button>
+                        <button onclick="createDeptBox()" style="padding: 8px 20px; border: none; background: #1976d2; color: white; border-radius: 4px; cursor: pointer;">생성</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 하위 팀 생성 모달 -->
+            <div id="create-team-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; justify-content: center; align-items: center;">
+                <div style="background: white; padding: 25px; border-radius: 8px; width: 350px;">
+                    <h3 style="margin: 0 0 20px 0;">하위 팀 생성</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px;">팀명</label>
+                        <input type="text" id="new-team-name" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button onclick="closeCreateTeamModal()" style="padding: 8px 20px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">취소</button>
+                        <button onclick="createTeam()" style="padding: 8px 20px; border: none; background: #1976d2; color: white; border-radius: 4px; cursor: pointer;">생성</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 양식 수정 모달 -->
+            <div id="org-style-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1001; justify-content: center; align-items: center;">
+                <div style="background: white; padding: 25px; border-radius: 8px; width: 400px;">
+                    <h3 style="margin: 0 0 20px 0;">조직도 양식 수정</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px;">레벨 간 높이 (px)</label>
+                        <input type="range" id="style-level-height" min="80" max="200" value="120" oninput="document.getElementById('style-level-height-val').textContent = this.value" style="width: 100%;">
+                        <span id="style-level-height-val" style="font-size: 12px; color: #666;">120</span>px
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px;">부서 박스 최소 너비 (px)</label>
+                        <input type="range" id="style-box-width" min="80" max="180" value="100" oninput="document.getElementById('style-box-width-val').textContent = this.value" style="width: 100%;">
+                        <span id="style-box-width-val" style="font-size: 12px; color: #666;">100</span>px
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px;">부서명 글자 크기 (px)</label>
+                        <input type="range" id="style-header-font" min="9" max="14" value="11" oninput="document.getElementById('style-header-font-val').textContent = this.value" style="width: 100%;">
+                        <span id="style-header-font-val" style="font-size: 12px; color: #666;">11</span>px
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px;">직원 글자 크기 (px)</label>
+                        <input type="range" id="style-member-font" min="8" max="12" value="10" oninput="document.getElementById('style-member-font-val').textContent = this.value" style="width: 100%;">
+                        <span id="style-member-font-val" style="font-size: 12px; color: #666;">10</span>px
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px;">헤더 패딩 (px)</label>
+                        <input type="range" id="style-header-padding" min="4" max="12" value="6" oninput="document.getElementById('style-header-padding-val').textContent = this.value" style="width: 100%;">
+                        <span id="style-header-padding-val" style="font-size: 12px; color: #666;">6</span>px
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button onclick="closeOrgStyleModal()" style="padding: 8px 20px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">취소</button>
+                        <button onclick="applyOrgStyle()" style="padding: 8px 20px; border: none; background: #1976d2; color: white; border-radius: 4px; cursor: pointer;">적용</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 연봉정보 탭 -->
+        <div id="salary-info-tab" class="layout" style="display: none;">
+            <div class="main-content" style="padding: 30px;">
+                <h2 style="margin-bottom: 20px;">연봉정보</h2>
+                
+                <!-- 필터 -->
+                <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+                    <select id="salary-company-filter" onchange="filterSalaryInfo()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">전체 법인</option>
+                    </select>
+                    <select id="salary-location-filter" onchange="filterSalaryInfo()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">전체 근무지</option>
+                    </select>
+                    <select id="salary-position-filter" onchange="filterSalaryInfo()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">전체 직급</option>
+                    </select>
+                    <select id="salary-jobtitle-filter" onchange="filterSalaryInfo()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">전체 직위</option>
+                    </select>
+                    <div style="margin-left: auto; display: flex; gap: 10px;">
+                        <button class="btn btn-outline" onclick="downloadSalaryTemplate()">📥 연봉 양식 다운로드</button>
+                        <button class="btn btn-primary" onclick="document.getElementById('salary-excel-upload').click()">📤 엑셀 업로드</button>
+                        <input type="file" id="salary-excel-upload" accept=".xlsx,.xls" style="display: none;" onchange="handleSalaryExcelUpload(event)">
+                        <button id="salary-edit-btn" class="btn btn-secondary" onclick="enableSalaryEdit()">✏️ 연봉정보 수정</button>
+                        <button id="salary-save-btn" class="btn btn-primary" onclick="saveSalaryChanges()" style="display: none;">💾 저장</button>
+                        <button id="salary-cancel-btn" class="btn btn-outline" onclick="cancelSalaryEdit()" style="display: none;">취소</button>
+                        <button class="btn btn-primary" onclick="exportSalary()">📊 Excel 내보내기</button>
+                    </div>
+                </div>
+
+                <!-- 연봉정보 테이블 -->
+                <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <table id="salary-table" style="width: 100%; border-collapse: collapse; background: white; font-size: 11px;">
+                        <thead style="background: #f5f5f5;">
+                            <tr>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap; width: 40px;">No</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">근무지</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">부서</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">성명</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">직위</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">법인명</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">입사일</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">통상임금</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">기본급</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">차량보조비</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">기타수당</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">연장근로수당</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">휴일근로수당</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">야간근로수당</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">고정상여</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">월 급여 계</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">연봉</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">비과세</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">연장근로(시간)</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">휴일근로(일)</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">휴일근로(시간)</th>
+                                <th style="padding: 6px 8px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">야간근로(시간)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salary-tbody">
+                            <tr>
+                                <td colspan="22" style="padding: 40px; text-align: center; color: #999;">데이터가 없습니다</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -298,6 +532,55 @@
                         <h3 style="margin-bottom: 15px; color: #1976d2;">고용형태 설정</h3>
                         <div id="employmenttype-list" style="margin-bottom: 15px; max-height: 200px; overflow-y: auto;"></div>
                         <button class="btn btn-outline" onclick="addSetting('employmentType')" style="width: 100%; padding: 8px;">+ 고용형태 추가</button>
+                    </div>
+
+                    <!-- 명부 정렬 기준 설정 -->
+                    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h3 style="margin-bottom: 15px; color: #1976d2;">임직원 명부 정렬 기준</h3>
+                        
+                        <div style="margin-bottom: 10px;">
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">정렬 기준 1 (1차)</label>
+                            <select id="roster-sort-1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">선택 안 함</option>
+                                <option value="name">이름순</option>
+                                <option value="hireDate">입사일순</option>
+                                <option value="position">직급순</option>
+                                <option value="jobTitle">직위순</option>
+                                <option value="jobRole">직책순</option>
+                                <option value="department">부서순</option>
+                                <option value="location">근무지순</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 10px;">
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">정렬 기준 2 (2차)</label>
+                            <select id="roster-sort-2" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">선택 안 함</option>
+                                <option value="name">이름순</option>
+                                <option value="hireDate">입사일순</option>
+                                <option value="position">직급순</option>
+                                <option value="jobTitle">직위순</option>
+                                <option value="jobRole">직책순</option>
+                                <option value="department">부서순</option>
+                                <option value="location">근무지순</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">정렬 기준 3 (3차)</label>
+                            <select id="roster-sort-3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="">선택 안 함</option>
+                                <option value="name">이름순</option>
+                                <option value="hireDate">입사일순</option>
+                                <option value="position">직급순</option>
+                                <option value="jobTitle">직위순</option>
+                                <option value="jobRole">직책순</option>
+                                <option value="department">부서순</option>
+                                <option value="location">근무지순</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn btn-primary" onclick="saveRosterSortSetting()" style="width: 100%; padding: 8px;">저장</button>
                     </div>
                 </div>
 
@@ -419,8 +702,13 @@
             const userName = user.email.split('@')[0];
             document.getElementById('current-user').textContent = userName;
             
-            await loadCompanyFilters();
-            await loadEmployees();
+            // window 객체를 통해 함수 호출 (정의 순서에 관계없이 안전하게 호출)
+            if (typeof window.loadCompanyFilters === 'function') {
+                await window.loadCompanyFilters();
+            }
+            if (typeof window.loadEmployees === 'function') {
+                await window.loadEmployees();
+            }
         }
 
         window.logout = async function() {
@@ -433,9 +721,9 @@
                 }
             }
         }
-    </script>
-
-    <script>
+        
+        // ====== 이하 유틸리티 및 데이터 함수들 ======
+        
         function showLoading() { document.getElementById('loading').classList.add('active'); }
         function hideLoading() { document.getElementById('loading').classList.remove('active'); }
 
@@ -481,8 +769,20 @@
         }
 
         window.addEventListener('DOMContentLoaded', async function() {
+            console.log('✅ 페이지 로딩 시작');
             showLoading();
-            await initializeData();
+            try {
+                await initializeData();
+                console.log('✅ 데이터 초기화 완료');
+                // 초기 탭 로드 - window 객체를 통해 호출
+                if (typeof window.switchMainTab === 'function') {
+                    window.switchMainTab('employee-info');
+                }
+                console.log('✅ 초기 탭 로드 완료');
+            } catch (error) {
+                console.error('❌ 초기화 오류:', error);
+                alert('초기화 오류: ' + error.message);
+            }
             hideLoading();
         });
 
@@ -492,8 +792,10 @@
             
             // 모든 탭 숨기기
             document.getElementById('employee-info-tab').style.display = 'none';
+            document.getElementById('salary-info-tab').style.display = 'none';
             document.getElementById('employee-roster-tab').style.display = 'none';
             document.getElementById('employee-record-tab').style.display = 'none';
+            document.getElementById('org-chart-tab').style.display = 'none';
             document.getElementById('company-tab').style.display = 'none';
             document.getElementById('admin-tab').style.display = 'none';
             
@@ -501,13 +803,23 @@
             if (tabName === 'employee-info') {
                 document.getElementById('employee-info-tab').style.display = 'flex';
                 document.getElementById('tab-employee').classList.add('active');
+                loadEmployees();  // 직원 목록 로드 추가
+                loadCompanyFilters();  // 법인 필터 로드 추가
+            } else if (tabName === 'salary-info') {
+                document.getElementById('salary-info-tab').style.display = 'flex';
+                document.getElementById('tab-employee').classList.add('active');
+                loadSalaryInfo();
             } else if (tabName === 'employee-roster') {
                 document.getElementById('employee-roster-tab').style.display = 'flex';
-                document.getElementById('tab-employee').classList.add('active');
+                document.getElementById('tab-employee-data').classList.add('active');
                 loadRoster();
+            } else if (tabName === 'org-chart') {
+                document.getElementById('org-chart-tab').style.display = 'flex';
+                document.getElementById('tab-employee-data').classList.add('active');
+                loadOrgChart();
             } else if (tabName === 'employee-record') {
                 document.getElementById('employee-record-tab').style.display = 'flex';
-                document.getElementById('tab-employee').classList.add('active');
+                document.getElementById('tab-employee-data').classList.add('active');
             } else if (tabName === 'company') {
                 document.getElementById('company-tab').style.display = 'flex';
                 document.getElementById('tab-company').classList.add('active');
@@ -519,7 +831,7 @@
             }
         }
 
-        async function loadCompanyFilters() {
+        window.loadCompanyFilters = async function loadCompanyFilters() {
             const select = document.getElementById('filter-company');
             select.innerHTML = '<option value="">전체</option>';
             
@@ -530,7 +842,7 @@
             });
         }
 
-        async function loadEmployees() {
+        window.loadEmployees = async function loadEmployees() {
             showLoading();
             allEmployees = [];
             const snapshot = await window.getDocs(window.collection(window.db, 'employees'));
@@ -546,7 +858,7 @@
             const company = document.getElementById('filter-company').value;
             
             let filtered = allEmployees.filter(emp => {
-                const matchSearch = !search || (emp.name && emp.name.toLowerCase().includes(search)) || (emp.employeeId && emp.employeeId.includes(search));
+                const matchSearch = !search || (emp.name && emp.name.toLowerCase().includes(search)) || (emp.id && emp.id.includes(search));
                 // GA KOREA(C001)는 통합법인으로 모든 직원 조회
                 const matchCompany = !company || company === 'C001' || emp.companyCode === company;
                 return matchSearch && matchCompany;
@@ -564,17 +876,18 @@
             
             list.innerHTML = employees.map(emp => `
                 <div class="employee-item" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" class="employee-checkbox" value="${emp.employeeId}" 
+                    <input type="checkbox" class="employee-checkbox" value="${emp.id}" 
                            onclick="event.stopPropagation()" style="width: 16px; height: 16px; cursor: pointer;">
-                    <div style="flex: 1; cursor: pointer;" onclick="selectEmployee('${emp.employeeId}')">
+                    <div style="flex: 1; cursor: pointer;" onclick="selectEmployee('${emp.id}')">
                         <div class="name">${emp.name}</div>
-                        <div class="info">${emp.employeeId}</div>
+                        <div class="info">${emp.id}</div>
                     </div>
                 </div>
             `).join('');
         }
 
         window.deleteSelectedEmployees = async function() {
+            console.log('✅ deleteSelectedEmployees 호출됨');
             const checkboxes = document.querySelectorAll('.employee-checkbox:checked');
             if (checkboxes.length === 0) {
                 alert('삭제할 직원을 선택해주세요.');
@@ -583,7 +896,7 @@
             
             const employeeIds = Array.from(checkboxes).map(cb => cb.value);
             const names = employeeIds.map(id => {
-                const emp = allEmployees.find(e => e.employeeId === id);
+                const emp = allEmployees.find(e => e.id === id);
                 return emp ? emp.name : id;
             });
             
@@ -638,8 +951,8 @@
             });
         }
 
-        function selectEmployee(id) {
-            const emp = allEmployees.find(e => e.employeeId === id);
+        window.selectEmployee = function(id) {
+            const emp = allEmployees.find(e => e.id === id);
             if (!emp) return;
             
             // 법인명, 부서명 조회
@@ -649,7 +962,7 @@
             document.getElementById('employee-detail').innerHTML = `
                 <div style="max-width: 1200px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-                        <h2>${emp.name} (${emp.employeeId})</h2>
+                        <h2>${emp.name} (${emp.id})</h2>
                         <div class="button-group" style="margin: 0;">
                             <button class="btn btn-primary" onclick="editEmployee('${id}')">수정</button>
                             <button class="btn btn-secondary" onclick="deleteEmployee('${id}')">삭제</button>
@@ -661,7 +974,7 @@
                     <table class="form-table">
                         <tr>
                             <th>사번</th>
-                            <td>${emp.employeeId || '-'}</td>
+                            <td>${emp.id || '-'}</td>
                             <th>성명</th>
                             <td>${emp.name || '-'}</td>
                         </tr>
@@ -831,7 +1144,7 @@
         }
 
         async function deleteEmployee(id) {
-            const emp = allEmployees.find(e => e.employeeId === id);
+            const emp = allEmployees.find(e => e.id === id);
             const empName = emp ? emp.name : id;
             
             // 강화된 삭제 확인
@@ -856,11 +1169,12 @@
         }
 
         function editEmployee(id) {
-            const emp = allEmployees.find(e => e.employeeId === id);
+            const emp = allEmployees.find(e => e.id === id);
             showEmployeeForm(emp);
         }
 
         window.showNewEmployeeForm = function() {
+            console.log('✅ showNewEmployeeForm 호출됨');
             showEmployeeForm();
         }
 
@@ -879,6 +1193,16 @@
             
             const dSnap = await window.getDocs(window.collection(window.db, 'departments'));
             dSnap.forEach(doc => depts.push(doc.data()));
+            
+            // 설정값 로드
+            const settingsDoc = await window.getDoc(window.doc(window.db, 'settings', 'master'));
+            const settings = settingsDoc.exists() ? settingsDoc.data() : {
+                positions: [],
+                jobTitles: [],
+                jobRoles: [],
+                locations: [],
+                employmentTypes: []
+            };
             
             document.getElementById('employee-detail').innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -901,7 +1225,7 @@
                         <table class="form-table">
                             <tr>
                                 <th class="required">사번</th>
-                                <td><input name="employeeId" value="${emp?.employeeId || generateId()}" ${emp ? 'readonly' : ''} required></td>
+                                <td><input name="employeeId" value="${emp?.id || generateId()}" ${emp ? 'readonly' : ''} required></td>
                                 <th>영문 사번</th>
                                 <td><input name="employeeIdEn" value="${emp?.employeeIdEn || ''}"></td>
                             </tr>
@@ -1062,32 +1386,36 @@
                                 <td>
                                     <select name="employmentType" required>
                                         <option value="">선택</option>
-                                        <option value="정규직" ${emp?.employmentType === '정규직' ? 'selected' : ''}>정규직</option>
-                                        <option value="계약직" ${emp?.employmentType === '계약직' ? 'selected' : ''}>계약직</option>
-                                        <option value="인턴" ${emp?.employmentType === '인턴' ? 'selected' : ''}>인턴</option>
-                                        <option value="파견직" ${emp?.employmentType === '파견직' ? 'selected' : ''}>파견직</option>
+                                        ${(settings.employmentTypes || []).map(type => `<option value="${type}" ${emp?.employmentType === type ? 'selected' : ''}>${type}</option>`).join('')}
                                     </select>
                                 </td>
                                 <th class="required">직급</th>
                                 <td>
                                     <select name="position" required>
                                         <option value="">선택</option>
-                                        <option value="인턴" ${emp?.position === '인턴' ? 'selected' : ''}>인턴</option>
-                                        <option value="사원" ${emp?.position === '사원' ? 'selected' : ''}>사원</option>
-                                        <option value="주임" ${emp?.position === '주임' ? 'selected' : ''}>주임</option>
-                                        <option value="대리" ${emp?.position === '대리' ? 'selected' : ''}>대리</option>
-                                        <option value="과장" ${emp?.position === '과장' ? 'selected' : ''}>과장</option>
-                                        <option value="차장" ${emp?.position === '차장' ? 'selected' : ''}>차장</option>
-                                        <option value="부장" ${emp?.position === '부장' ? 'selected' : ''}>부장</option>
-                                        <option value="이사" ${emp?.position === '이사' ? 'selected' : ''}>이사</option>
+                                        ${(settings.positions || []).map(pos => `<option value="${pos}" ${emp?.position === pos ? 'selected' : ''}>${pos}</option>`).join('')}
                                     </select>
                                 </td>
                             </tr>
                             <tr>
+                                <th>직위</th>
+                                <td>
+                                    <select name="jobTitle">
+                                        <option value="">선택</option>
+                                        ${(settings.jobTitles || []).map(jt => `<option value="${jt}" ${emp?.jobTitle === jt ? 'selected' : ''}>${jt}</option>`).join('')}
+                                    </select>
+                                </td>
                                 <th>직책</th>
-                                <td><input name="jobTitle" value="${emp?.jobTitle || ''}"></td>
+                                <td>
+                                    <select name="jobRole">
+                                        <option value="">선택</option>
+                                        ${(settings.jobRoles || []).map(jr => `<option value="${jr}" ${emp?.jobRole === jr ? 'selected' : ''}>${jr}</option>`).join('')}
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
                                 <th>직무</th>
-                                <td><input name="jobRole" value="${emp?.jobRole || ''}"></td>
+                                <td colspan="3"><input name="duty" value="${emp?.duty || ''}"></td>
                             </tr>
                             <tr>
                                 <th>근무형태</th>
@@ -1207,11 +1535,13 @@
                 
                 console.log('저장 데이터:', data);
                 
-                await window.setDoc(window.doc(window.db, 'employees', data.employeeId), data);
+                // employeeId를 문서 ID로 사용
+                const docId = data.employeeId || generateId();
+                await window.setDoc(window.doc(window.db, 'employees', docId), data);
                 
                 alert('✅ 저장되었습니다!');
                 await loadEmployees();
-                selectEmployee(data.employeeId);
+                selectEmployee(docId);
                 
             } catch (error) {
                 console.error('저장 오류:', error);
@@ -1234,51 +1564,34 @@
 
         // ===== 엑셀 다운로드 (양식) =====
         window.downloadExcelTemplate = function() {
+            console.log('✅ downloadExcelTemplate 호출됨');
             const template = [
                 {
-                    '사번': '26011001',
-                    '성명': '홍길동',
-                    '영문명': 'Hong Gil Dong',
-                    '내외국인': '내국인',
-                    '성별': '남성',
-                    '생년월일': '1990-01-01',
-                    '주민등록번호': '900101-1234567',
-                    '휴대전화': '010-1234-5678',
-                    '전화번호': '02-1234-5678',
-                    '주소': '서울시 강남구',
-                    '이메일(회사)': 'hong@gakorea.com',
-                    '이메일(개인)': 'hong@email.com',
-                    '은행명': '신한은행',
-                    '계좌번호': '110-123-456789',
-                    '예금주': '홍길동',
-                    '최종학력': '대졸',
-                    '학교명': 'OO대학교',
-                    '전공': '경영학',
-                    '졸업일': '2012-02-28',
-                    '결혼여부': '기혼',
-                    '자녀수': '2',
-                    '비상연락처': '010-9876-5432',
-                    '비상연락처관계': '배우자',
-                    '입사일': '2020-01-01',
-                    '그룹입사일': '2020-01-01',
-                    '퇴사일': '',
-                    '재직상태': '재직',
-                    '법인': 'GA KOREA',
                     '근무지': '본사',
                     '부서': '인사팀',
-                    '고용형태': '정규직',
+                    '성명': '홍길동',
+                    '직위': '팀원',
                     '직급': '대리',
-                    '직책': '팀원',
                     '직무': '인사관리',
-                    '근무형태': '주5일',
-                    '급여등급': 'G3',
-                    '기본급': '3000000',
+                    '소속법인(급여기준)': 'GA KOREA',
+                    '주민등록번호': '900101-1234567',
+                    '계약기간': '2020-01-01 ~ 2025-12-31',
+                    '생년월일': '1990-01-01',
+                    '나이(만)': '34',
+                    '정년도래': '2055-01-01',
+                    '성별': '남성',
                     '연봉': '40000000',
-                    '국민연금': 'O',
-                    '건강보험': 'O',
-                    '고용보험': 'O',
-                    '산재보험': 'O',
-                    '비고': ''
+                    '최초입사일': '2020-01-01',
+                    '근속기간': '4년 0개월',
+                    '최종승진일': '2022-01-01',
+                    '비고': '',
+                    '상벌': '',
+                    '현직위체류기간': '2년',
+                    '최종학력': '대졸',
+                    '연락처': '010-1234-5678',
+                    '이메일': 'hong@gakorea.com',
+                    '급여계좌': '신한은행 110-123-456789',
+                    '집주소': '서울시 강남구'
                 }
             ];
 
@@ -1287,19 +1600,15 @@
             
             // 컬럼 너비 설정
             ws['!cols'] = [
-                {wch: 12}, {wch: 10}, {wch: 15}, {wch: 10}, {wch: 8},
-                {wch: 12}, {wch: 18}, {wch: 15}, {wch: 15}, {wch: 30},
-                {wch: 20}, {wch: 20}, {wch: 12}, {wch: 18}, {wch: 10},
-                {wch: 10}, {wch: 15}, {wch: 12}, {wch: 12}, {wch: 10},
-                {wch: 8}, {wch: 15}, {wch: 12}, {wch: 12}, {wch: 12},
-                {wch: 12}, {wch: 10}, {wch: 15}, {wch: 12}, {wch: 12},
-                {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 12},
-                {wch: 12}, {wch: 12}, {wch: 12}, {wch: 10}, {wch: 10},
-                {wch: 10}, {wch: 10}, {wch: 30}
+                {wch: 12}, {wch: 15}, {wch: 10}, {wch: 10}, {wch: 10},
+                {wch: 12}, {wch: 20}, {wch: 18}, {wch: 25}, {wch: 12},
+                {wch: 10}, {wch: 12}, {wch: 8}, {wch: 12}, {wch: 12},
+                {wch: 15}, {wch: 12}, {wch: 20}, {wch: 15}, {wch: 15},
+                {wch: 12}, {wch: 15}, {wch: 25}, {wch: 30}, {wch: 30}
             ];
             
-            XLSX.utils.book_append_sheet(wb, ws, '직원목록');
-            XLSX.writeFile(wb, '직원등록_양식.xlsx');
+            XLSX.utils.book_append_sheet(wb, ws, '인사정보');
+            XLSX.writeFile(wb, 'GA_KOREA_인사정보_양식.xlsx');
         }
 
         // ===== 엑셀 업로드 =====
@@ -1324,6 +1633,14 @@
             }
             
             return String(excelDate);
+        }
+        
+        // 사번 자동 생성 함수
+        function generateEmployeeId() {
+            const year = new Date().getFullYear().toString().slice(2);
+            const month = String(new Date().getMonth() + 1).padStart(2, '0');
+            const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+            return year + month + random;
         }
         
         window.handleExcelUpload = async function(event) {
@@ -1366,8 +1683,9 @@
                 // 신규 법인 자동 생성
                 const newCompanies = new Set();
                 for (const row of jsonData) {
-                    if (row['법인'] && !companyNameToCode[row['법인']]) {
-                        newCompanies.add(row['법인']);
+                    const companyName = row['소속법인(급여기준)'] || row['소속법인'] || row['법인'];
+                    if (companyName && !companyNameToCode[companyName]) {
+                        newCompanies.add(companyName);
                     }
                 }
 
@@ -1402,36 +1720,52 @@
                     const row = jsonData[i];
                     
                     try {
-                        // 필수 필드 검증 (사번, 성명만 필수)
-                        if (!row['사번'] || !row['성명']) {
-                            errors.push(`${i+2}행: 필수 항목 누락 (사번, 성명)`);
+                        // 필수 필드 검증 (성명만 필수)
+                        if (!row['성명']) {
+                            errors.push(`${i+2}행: 필수 항목 누락 (성명)`);
                             errorCount++;
                             continue;
                         }
 
+                        // 사번 생성 (없으면 자동 생성)
+                        let employeeId = row['사번'] || generateEmployeeId();
+                        
                         // 법인 코드 찾기
-                        const companyCode = companyNameToCode[row['법인']] || 'C001';
+                        const companyCode = companyNameToCode[row['소속법인(급여기준)'] || row['소속법인']] || 'C001';
                         
                         // 부서 코드 찾기
                         const departmentCode = deptMap[row['부서']] || '';
 
-                        // 데이터 매핑 (있는 값만 저장)
+                        // 급여계좌 분리 (은행명 + 계좌번호)
+                        let bankName = '';
+                        let accountNumber = '';
+                        if (row['급여계좌']) {
+                            const accountParts = String(row['급여계좌']).split(' ');
+                            if (accountParts.length >= 2) {
+                                bankName = accountParts[0];
+                                accountNumber = accountParts.slice(1).join(' ');
+                            } else {
+                                accountNumber = row['급여계좌'];
+                            }
+                        }
+
+                        // 데이터 매핑 (인사정보 양식에 맞춤)
                         const employeeData = {
-                            employeeId: String(row['사번']).trim(),
+                            employeeId: String(employeeId).trim(),
                             name: row['성명'] || '',
                             nameEn: row['영문명'] || '',
                             nationality: row['내외국인'] || '내국인',
                             gender: row['성별'] || '',
                             birthDate: excelDateToJSDate(row['생년월일']),
                             residentNumber: row['주민등록번호'] || '',
-                            mobile: row['휴대전화'] || '',
+                            mobile: row['연락처'] || row['휴대전화'] || '',
                             phone: row['전화번호'] || '',
-                            address: row['주소'] || '',
-                            companyEmail: row['이메일(회사)'] || '',
+                            address: row['집주소'] || row['주소'] || '',
+                            companyEmail: row['이메일'] || row['이메일(회사)'] || '',
                             personalEmail: row['이메일(개인)'] || '',
-                            bankName: row['은행명'] || '',
-                            accountNumber: row['계좌번호'] || '',
-                            accountHolder: row['예금주'] || '',
+                            bankName: bankName,
+                            accountNumber: accountNumber,
+                            accountHolder: row['예금주'] || row['성명'] || '',
                             education: row['최종학력'] || '',
                             schoolName: row['학교명'] || '',
                             major: row['전공'] || '',
@@ -1440,7 +1774,7 @@
                             numberOfChildren: String(row['자녀수'] || '0'),
                             emergencyContact: row['비상연락처'] || '',
                             emergencyRelation: row['비상연락처관계'] || '',
-                            hireDate: excelDateToJSDate(row['입사일']),
+                            hireDate: excelDateToJSDate(row['최초입사일'] || row['입사일']),
                             groupHireDate: excelDateToJSDate(row['그룹입사일']),
                             resignDate: excelDateToJSDate(row['퇴사일']),
                             workStatus: row['재직상태'] || '재직',
@@ -1449,12 +1783,15 @@
                             departmentCode: departmentCode,
                             employmentType: row['고용형태'] || '',
                             position: row['직급'] || '',
-                            jobTitle: row['직책'] || '',
+                            jobTitle: row['직위'] || row['직책'] || '',
                             jobRole: row['직무'] || '',
                             workType: row['근무형태'] || '',
                             salaryGrade: row['급여등급'] || '',
                             baseSalary: String(row['기본급'] || ''),
-                            annualSalary: String(row['연봉'] || ''),
+                            annualSalary: String(row['연봉'] || '').replace(/,/g, ''),
+                            contractPeriod: row['계약기간'] || '',
+                            promotionDate: excelDateToJSDate(row['최종승진일']),
+                            rewards: row['상벌'] || '',
                             nationalPension: (row['국민연금'] === 'O' || row['국민연금'] === 'o'),
                             healthInsurance: (row['건강보험'] === 'O' || row['건강보험'] === 'o'),
                             employmentInsurance: (row['고용보험'] === 'O' || row['고용보험'] === 'o'),
@@ -1501,6 +1838,7 @@
         async function loadRoster() {
             showLoading();
             
+            // 현재 필터 값 저장
             const companyFilter = document.getElementById('roster-company-filter').value;
             const locationFilter = document.getElementById('roster-location-filter').value;
             const positionFilter = document.getElementById('roster-position-filter').value;
@@ -1536,58 +1874,58 @@
                 if (emp.jobTitle) jobTitles.add(emp.jobTitle);
             });
             
-            // 법인 필터 업데이트
+            // 법인 필터 업데이트 (값 유지하면서 재생성)
             const companySelect = document.getElementById('roster-company-filter');
-            if (companySelect.options.length === 1) {
-                Object.entries(companies).forEach(([code, name]) => {
-                    const option = document.createElement('option');
-                    option.value = code;
-                    option.textContent = name;
-                    companySelect.appendChild(option);
-                });
-            }
+            companySelect.innerHTML = '<option value="">전체 법인</option>';
+            Object.entries(companies).forEach(([code, name]) => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = name;
+                companySelect.appendChild(option);
+            });
+            companySelect.value = companyFilter;
             
             // 근무지 필터 업데이트
             const locationSelect = document.getElementById('roster-location-filter');
-            if (locationSelect.options.length === 1) {
-                Array.from(locations).sort().forEach(loc => {
-                    const option = document.createElement('option');
-                    option.value = loc;
-                    option.textContent = loc;
-                    locationSelect.appendChild(option);
-                });
-            }
+            locationSelect.innerHTML = '<option value="">전체 근무지</option>';
+            Array.from(locations).sort().forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc;
+                option.textContent = loc;
+                locationSelect.appendChild(option);
+            });
+            locationSelect.value = locationFilter;
             
             // 직급 필터 업데이트
             const positionSelect = document.getElementById('roster-position-filter');
-            if (positionSelect.options.length === 1) {
-                const positionOrder = ['인턴', '사원', '주임', '대리', '과장', '차장', '부장', '이사'];
-                const sortedPositions = Array.from(positions).sort((a, b) => {
-                    const idxA = positionOrder.indexOf(a);
-                    const idxB = positionOrder.indexOf(b);
-                    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
-                    if (idxA === -1) return 1;
-                    if (idxB === -1) return -1;
-                    return idxA - idxB;
-                });
-                sortedPositions.forEach(pos => {
-                    const option = document.createElement('option');
-                    option.value = pos;
-                    option.textContent = pos;
-                    positionSelect.appendChild(option);
-                });
-            }
+            positionSelect.innerHTML = '<option value="">전체 직급</option>';
+            const positionOrder = ['인턴', '사원', '주임', '대리', '과장', '차장', '부장', '이사'];
+            const sortedPositions = Array.from(positions).sort((a, b) => {
+                const idxA = positionOrder.indexOf(a);
+                const idxB = positionOrder.indexOf(b);
+                if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+                if (idxA === -1) return 1;
+                if (idxB === -1) return -1;
+                return idxA - idxB;
+            });
+            sortedPositions.forEach(pos => {
+                const option = document.createElement('option');
+                option.value = pos;
+                option.textContent = pos;
+                positionSelect.appendChild(option);
+            });
+            positionSelect.value = positionFilter;
             
             // 직위 필터 업데이트
             const jobTitleSelect = document.getElementById('roster-jobtitle-filter');
-            if (jobTitleSelect.options.length === 1) {
-                Array.from(jobTitles).sort().forEach(title => {
-                    const option = document.createElement('option');
-                    option.value = title;
-                    option.textContent = title;
-                    jobTitleSelect.appendChild(option);
-                });
-            }
+            jobTitleSelect.innerHTML = '<option value="">전체 직위</option>';
+            Array.from(jobTitles).sort().forEach(title => {
+                const option = document.createElement('option');
+                option.value = title;
+                option.textContent = title;
+                jobTitleSelect.appendChild(option);
+            });
+            jobTitleSelect.value = jobTitleFilter;
             
             // 필터링
             if (companyFilter) {
@@ -1606,12 +1944,96 @@
                 employees = employees.filter(e => e.jobTitle === jobTitleFilter);
             }
             
+            // 정렬 기준 적용
+            const settingsDoc = await window.getDoc(window.doc(window.db, 'settings', 'master'));
+            let settings = {
+                positions: [],
+                jobTitles: [],
+                jobRoles: [],
+                rosterSort: { sort1: 'name', sort2: '', sort3: '' }
+            };
+            
+            if (settingsDoc.exists()) {
+                settings = { ...settings, ...settingsDoc.data() };
+            }
+            
+            // 임원/자문/고문 우선 정렬
+            const vipPositions = ['임원', '자문', '고문'];
+            
+            // 3단계 정렬
+            employees.sort((a, b) => {
+                // 1. 임원/자문/고문 우선
+                const aIsVip = vipPositions.includes(a.position);
+                const bIsVip = vipPositions.includes(b.position);
+                
+                if (aIsVip && !bIsVip) return -1;
+                if (!aIsVip && bIsVip) return 1;
+                
+                // 2. 정렬 기준 적용
+                const sortKeys = [
+                    settings.rosterSort?.sort1 || 'name',
+                    settings.rosterSort?.sort2 || '',
+                    settings.rosterSort?.sort3 || ''
+                ];
+                
+                for (const sortKey of sortKeys) {
+                    if (!sortKey) continue;
+                    
+                    let result = 0;
+                    
+                    if (sortKey === 'name') {
+                        result = (a.name || '').localeCompare(b.name || '');
+                    } else if (sortKey === 'hireDate') {
+                        result = (a.hireDate || '').localeCompare(b.hireDate || '');
+                    } else if (sortKey === 'position') {
+                        const order = settings.positions || [];
+                        const idxA = order.indexOf(a.position || '');
+                        const idxB = order.indexOf(b.position || '');
+                        if (idxA === -1 && idxB === -1) result = (a.position || '').localeCompare(b.position || '');
+                        else if (idxA === -1) result = 1;
+                        else if (idxB === -1) result = -1;
+                        else result = idxA - idxB;
+                    } else if (sortKey === 'jobTitle') {
+                        const order = settings.jobTitles || [];
+                        const idxA = order.indexOf(a.jobTitle || '');
+                        const idxB = order.indexOf(b.jobTitle || '');
+                        if (idxA === -1 && idxB === -1) result = (a.jobTitle || '').localeCompare(b.jobTitle || '');
+                        else if (idxA === -1) result = 1;
+                        else if (idxB === -1) result = -1;
+                        else result = idxA - idxB;
+                    } else if (sortKey === 'jobRole') {
+                        const order = settings.jobRoles || [];
+                        const idxA = order.indexOf(a.jobRole || '');
+                        const idxB = order.indexOf(b.jobRole || '');
+                        if (idxA === -1 && idxB === -1) result = (a.jobRole || '').localeCompare(b.jobRole || '');
+                        else if (idxA === -1) result = 1;
+                        else if (idxB === -1) result = -1;
+                        else result = idxA - idxB;
+                    } else if (sortKey === 'department') {
+                        result = (depts[a.departmentCode] || '').localeCompare(depts[b.departmentCode] || '');
+                    } else if (sortKey === 'location') {
+                        // 시스템 관리자에서 설정한 근무지 순서대로 정렬
+                        const order = settings.locations || [];
+                        const idxA = order.indexOf(a.workLocation || '');
+                        const idxB = order.indexOf(b.workLocation || '');
+                        if (idxA === -1 && idxB === -1) result = (a.workLocation || '').localeCompare(b.workLocation || '');
+                        else if (idxA === -1) result = 1;
+                        else if (idxB === -1) result = -1;
+                        else result = idxA - idxB;
+                    }
+                    
+                    if (result !== 0) return result;
+                }
+                
+                return 0;
+            });
+            
             // 테이블 렌더링
             const tbody = document.getElementById('roster-tbody');
             if (employees.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="17" style="padding: 40px; text-align: center; color: #999;">데이터가 없습니다</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="19" style="padding: 40px; text-align: center; color: #999;">데이터가 없습니다</td></tr>';
             } else {
-                tbody.innerHTML = employees.map((emp) => {
+                tbody.innerHTML = employees.map((emp, index) => {
                     // 나이 계산
                     const age = emp.birthDate ? new Date().getFullYear() - new Date(emp.birthDate).getFullYear() : '-';
                     
@@ -1625,25 +2047,30 @@
                         tenure = `${years}년 ${months}개월`;
                     }
                     
+                    // 연봉 포맷팅 (천 단위 콤마)
+                    const salary = emp.annualSalary ? Number(emp.annualSalary).toLocaleString() : '-';
+                    
                     return `
                     <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.workLocation || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${depts[emp.departmentCode] || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">${emp.name || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.jobTitle || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.position || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.jobRole || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${companies[emp.companyCode] || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.residentNumber || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.birthDate || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${age}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${emp.gender || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.hireDate || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${tenure}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.education || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.mobile || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.companyEmail || emp.personalEmail || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${emp.address || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; text-align: center; white-space: nowrap;">${index + 1}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.workLocation || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${depts[emp.departmentCode] || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; font-weight: bold; white-space: nowrap;">${emp.name || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.jobTitle || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.position || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.jobRole || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${companies[emp.companyCode] || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.residentNumber || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.birthDate || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; text-align: center; white-space: nowrap;">${age}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; text-align: center; white-space: nowrap;">${emp.gender || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.hireDate || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${tenure}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; text-align: right; white-space: nowrap;">${salary}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.education || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.mobile || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.companyEmail || emp.personalEmail || '-'}</td>
+                        <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 11px; white-space: nowrap;">${emp.address || '-'}</td>
                     </tr>
                 `;
                 }).join('');
@@ -1671,6 +2098,667 @@
             link.href = URL.createObjectURL(blob);
             link.download = '임직원명부_' + new Date().toISOString().slice(0,10) + '.csv';
             link.click();
+        }
+
+        // ===== 연봉정보 =====
+        
+        // 수식 입력 중인 셀 추적
+        let activeFormulaCell = null;
+        
+        // 셀 클릭 핸들러
+        window.handleCellClick = function(event, employeeId, field) {
+            const input = event.target;
+            
+            // 포커스 시 수식 입력 모드 활성화
+            if (input.value.startsWith('=') || input.selectionStart === 0) {
+                activeFormulaCell = { employeeId, field, input };
+            }
+        }
+        
+        // 셀 참조 추가
+        window.addCellReference = function(event, employeeId, cellName) {
+            event.stopPropagation();
+            
+            if (!activeFormulaCell) return;
+            
+            const input = activeFormulaCell.input;
+            const cursorPos = input.selectionStart;
+            const currentValue = input.value;
+            
+            // 수식이 아니면 =로 시작하게 만들기
+            let newValue = currentValue;
+            if (!currentValue.startsWith('=')) {
+                newValue = '=' + cellName;
+            } else {
+                // 커서 위치에 셀 이름 삽입
+                newValue = currentValue.slice(0, cursorPos) + cellName + currentValue.slice(cursorPos);
+            }
+            
+            input.value = newValue;
+            input.focus();
+            
+            // 커서를 삽입된 텍스트 뒤로 이동
+            const newCursorPos = cursorPos + cellName.length + (currentValue.startsWith('=') ? 0 : 1);
+            input.setSelectionRange(newCursorPos, newCursorPos);
+            
+            // 실시간 계산 업데이트
+            updateSalaryCell(activeFormulaCell.employeeId, activeFormulaCell.field, newValue);
+        }
+        
+        // 수식 평가 함수
+        function evaluateFormula(formula, rowData) {
+            if (!formula || !formula.toString().startsWith('=')) {
+                return Number(formula || 0);
+            }
+            
+            try {
+                // 수식에서 = 제거
+                let expr = formula.substring(1).trim();
+                
+                // 셀 참조 처리 (예: 통상임금, 기본급, 시간 등)
+                const replacements = {
+                    '통상임금': rowData.regularWage || 0,
+                    '기본급': rowData.baseSalary || 0,
+                    '차량보조비': rowData.carAllowance || 0,
+                    '기타수당': rowData.otherAllowance || 0,
+                    '고정상여': rowData.fixedBonus || 0,
+                    '연장근로시간': rowData.overtimeHours || 0,
+                    '휴일근로일': rowData.holidayDays || 0,
+                    '휴일근로시간': rowData.holidayHours || 0,
+                    '야간근로시간': rowData.nightHours || 0,
+                    '시간': rowData.overtimeHours || 0
+                };
+                
+                for (const [key, value] of Object.entries(replacements)) {
+                    const regex = new RegExp(key, 'g');
+                    expr = expr.replace(regex, value);
+                }
+                
+                // 간단한 수식 평가 (*, /, +, -)
+                return eval(expr);
+            } catch (e) {
+                console.error('수식 오류:', formula, e);
+                return 0;
+            }
+        }
+        
+        // 셀 값 업데이트
+        window.updateSalaryCell = function(employeeId, field, value) {
+            // 실시간으로 계산된 값 업데이트
+            const row = document.querySelector(`tr[data-employee-id="${employeeId}"]`);
+            if (!row) return;
+            
+            // 월 급여 계 다시 계산
+            const cells = row.querySelectorAll('input[type="text"]');
+            const data = {};
+            cells.forEach(input => {
+                const f = input.dataset.field;
+                if (f) {
+                    data[f] = input.value;
+                }
+            });
+            
+            // 수식 평가
+            const regularWage = evaluateFormula(data.regularWage, data);
+            const baseSalary = evaluateFormula(data.baseSalary, data);
+            const carAllowance = evaluateFormula(data.carAllowance, data);
+            const otherAllowance = evaluateFormula(data.otherAllowance, data);
+            const overtimePay = evaluateFormula(data.overtimePay, data);
+            const holidayPay = evaluateFormula(data.holidayPay, data);
+            const nightPay = evaluateFormula(data.nightPay, data);
+            const fixedBonus = evaluateFormula(data.fixedBonus, data);
+            
+            const monthlyTotal = baseSalary + carAllowance + otherAllowance + overtimePay + holidayPay + nightPay + fixedBonus;
+            
+            // 월 급여 계 셀 업데이트
+            const monthlyCellIdx = 15; // 월 급여 계는 16번째 컬럼 (0-based index 15)
+            row.cells[monthlyCellIdx].textContent = monthlyTotal.toLocaleString();
+        }
+        
+        window.saveSalaryChanges = async function() {
+            showLoading();
+            
+            const table = document.getElementById('salary-table');
+            const rows = table.querySelectorAll('tbody tr[data-employee-id]');
+            
+            for (let row of rows) {
+                const empId = row.dataset.employeeId;
+                if (!empId) continue;
+                
+                const inputs = row.querySelectorAll('input[type="text"]');
+                const data = {};
+                
+                inputs.forEach(input => {
+                    const field = input.dataset.field;
+                    if (field) {
+                        data[field] = input.value;
+                    }
+                });
+                
+                await window.setDoc(window.doc(window.db, 'employees', empId), data, { merge: true });
+            }
+            
+            hideLoading();
+            alert('✅ 저장되었습니다!');
+            
+            // 수정 모드 종료
+            salaryEditMode = false;
+            document.getElementById('salary-edit-btn').style.display = '';
+            document.getElementById('salary-save-btn').style.display = 'none';
+            document.getElementById('salary-cancel-btn').style.display = 'none';
+            
+            loadSalaryInfo();
+        }
+        
+        // 연봉정보 수정 모드 상태
+        let salaryEditMode = false;
+        // 연봉정보 전체 데이터 저장 (필터용)
+        let allSalaryEmployees = [];
+        let salaryCompanies = {};
+        let salaryDepts = {};
+        let salarySettings = {};
+        
+        // 연봉정보 수정 모드 활성화
+        window.enableSalaryEdit = function() {
+            if (confirm('연봉을 수정하시겠습니까?')) {
+                salaryEditMode = true;
+                document.getElementById('salary-edit-btn').style.display = 'none';
+                document.getElementById('salary-save-btn').style.display = '';
+                document.getElementById('salary-cancel-btn').style.display = '';
+                
+                // 입력 필드 활성화
+                document.querySelectorAll('#salary-tbody input.salary-cell').forEach(input => {
+                    input.disabled = false;
+                    input.style.background = '#fff';
+                });
+            }
+        }
+        
+        // 연봉정보 수정 취소
+        window.cancelSalaryEdit = function() {
+            salaryEditMode = false;
+            document.getElementById('salary-edit-btn').style.display = '';
+            document.getElementById('salary-save-btn').style.display = 'none';
+            document.getElementById('salary-cancel-btn').style.display = 'none';
+            
+            // 데이터 다시 로드 (변경사항 취소)
+            loadSalaryInfo();
+        }
+        
+        async function loadSalaryInfo() {
+            showLoading();
+            
+            // 법인 데이터 로드
+            const companiesSnap = await window.getDocs(window.collection(window.db, 'companies'));
+            salaryCompanies = {};
+            companiesSnap.forEach(doc => {
+                const c = doc.data();
+                salaryCompanies[c.code] = c.name;
+            });
+            
+            // 부서 데이터 로드
+            const deptsSnap = await window.getDocs(window.collection(window.db, 'departments'));
+            salaryDepts = {};
+            deptsSnap.forEach(doc => {
+                const d = doc.data();
+                salaryDepts[d.code] = d.name;
+            });
+            
+            // 직원 데이터 로드
+            const employeesSnap = await window.getDocs(window.collection(window.db, 'employees'));
+            allSalaryEmployees = [];
+            const locations = new Set();
+            const positions = new Set();
+            
+            employeesSnap.forEach(doc => {
+                const emp = doc.data();
+                emp.id = doc.id;
+                allSalaryEmployees.push(emp);
+                if (emp.workLocation) locations.add(emp.workLocation);
+                if (emp.position) positions.add(emp.position);
+            });
+            
+            // 법인 필터 업데이트
+            const companySelect = document.getElementById('salary-company-filter');
+            const currentCompanyValue = companySelect.value;
+            companySelect.innerHTML = '<option value="">전체 법인</option>';
+            Object.entries(salaryCompanies).forEach(([code, name]) => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = name;
+                companySelect.appendChild(option);
+            });
+            companySelect.value = currentCompanyValue;
+            
+            // 근무지 필터 업데이트
+            const locationSelect = document.getElementById('salary-location-filter');
+            const currentLocationValue = locationSelect.value;
+            locationSelect.innerHTML = '<option value="">전체 근무지</option>';
+            Array.from(locations).sort().forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc;
+                option.textContent = loc;
+                locationSelect.appendChild(option);
+            });
+            locationSelect.value = currentLocationValue;
+            
+            // 직급 필터 업데이트
+            const positionSelect = document.getElementById('salary-position-filter');
+            const currentPositionValue = positionSelect.value;
+            positionSelect.innerHTML = '<option value="">전체 직급</option>';
+            const positionOrder = ['인턴', '사원', '주임', '대리', '과장', '차장', '부장', '이사'];
+            const sortedPositions = Array.from(positions).sort((a, b) => {
+                const idxA = positionOrder.indexOf(a);
+                const idxB = positionOrder.indexOf(b);
+                if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+                if (idxA === -1) return 1;
+                if (idxB === -1) return -1;
+                return idxA - idxB;
+            });
+            sortedPositions.forEach(pos => {
+                const option = document.createElement('option');
+                option.value = pos;
+                option.textContent = pos;
+                positionSelect.appendChild(option);
+            });
+            positionSelect.value = currentPositionValue;
+            
+            // 직위 필터 업데이트
+            const jobTitles = new Set();
+            allSalaryEmployees.forEach(emp => {
+                if (emp.jobTitle) jobTitles.add(emp.jobTitle);
+            });
+            const jobTitleSelect = document.getElementById('salary-jobtitle-filter');
+            const currentJobTitleValue = jobTitleSelect.value;
+            jobTitleSelect.innerHTML = '<option value="">전체 직위</option>';
+            Array.from(jobTitles).sort().forEach(title => {
+                const option = document.createElement('option');
+                option.value = title;
+                option.textContent = title;
+                jobTitleSelect.appendChild(option);
+            });
+            jobTitleSelect.value = currentJobTitleValue;
+            
+            // 정렬 설정 로드
+            const settingsDoc = await window.getDoc(window.doc(window.db, 'settings', 'master'));
+            salarySettings = {
+                positions: [],
+                jobTitles: [],
+                jobRoles: [],
+                locations: [],
+                rosterSort: { sort1: 'name', sort2: '', sort3: '' }
+            };
+            
+            if (settingsDoc.exists()) {
+                salarySettings = { ...salarySettings, ...settingsDoc.data() };
+            }
+            
+            hideLoading();
+            
+            // 필터 적용하여 테이블 렌더링
+            filterSalaryInfo();
+        }
+        
+        // 필터 적용 함수 (별도 분리)
+        window.filterSalaryInfo = function() {
+            const companyFilter = document.getElementById('salary-company-filter').value;
+            const locationFilter = document.getElementById('salary-location-filter').value;
+            const positionFilter = document.getElementById('salary-position-filter').value;
+            const jobTitleFilter = document.getElementById('salary-jobtitle-filter').value;
+            
+            let employees = [...allSalaryEmployees];
+            
+            // 필터링
+            if (companyFilter) {
+                if (companyFilter !== 'C001') {
+                    employees = employees.filter(e => e.companyCode === companyFilter);
+                }
+            }
+            if (locationFilter) {
+                employees = employees.filter(e => e.workLocation === locationFilter);
+            }
+            if (positionFilter) {
+                employees = employees.filter(e => e.position === positionFilter);
+            }
+            if (jobTitleFilter) {
+                employees = employees.filter(e => e.jobTitle === jobTitleFilter);
+            }
+            
+            // 임원/자문/고문 우선 정렬
+            const vipPositions = ['임원', '자문', '고문'];
+            
+            // 3단계 정렬
+            employees.sort((a, b) => {
+                // 1. 임원/자문/고문 우선
+                const aIsVip = vipPositions.includes(a.position);
+                const bIsVip = vipPositions.includes(b.position);
+                
+                if (aIsVip && !bIsVip) return -1;
+                if (!aIsVip && bIsVip) return 1;
+                
+                // 2. 정렬 기준 적용
+                const sortKeys = [
+                    salarySettings.rosterSort?.sort1 || 'name',
+                    salarySettings.rosterSort?.sort2 || '',
+                    salarySettings.rosterSort?.sort3 || ''
+                ];
+                
+                for (const sortKey of sortKeys) {
+                    if (!sortKey) continue;
+                    
+                    let result = 0;
+                    
+                    if (sortKey === 'name') {
+                        result = (a.name || '').localeCompare(b.name || '');
+                    } else if (sortKey === 'hireDate') {
+                        result = (a.hireDate || '').localeCompare(b.hireDate || '');
+                    } else if (sortKey === 'position') {
+                        const order = salarySettings.positions || [];
+                        const idxA = order.indexOf(a.position || '');
+                        const idxB = order.indexOf(b.position || '');
+                        if (idxA === -1 && idxB === -1) result = (a.position || '').localeCompare(b.position || '');
+                        else if (idxA === -1) result = 1;
+                        else if (idxB === -1) result = -1;
+                        else result = idxA - idxB;
+                    } else if (sortKey === 'jobTitle') {
+                        const order = salarySettings.jobTitles || [];
+                        const idxA = order.indexOf(a.jobTitle || '');
+                        const idxB = order.indexOf(b.jobTitle || '');
+                        if (idxA === -1 && idxB === -1) result = (a.jobTitle || '').localeCompare(b.jobTitle || '');
+                        else if (idxA === -1) result = 1;
+                        else if (idxB === -1) result = -1;
+                        else result = idxA - idxB;
+                    } else if (sortKey === 'jobRole') {
+                        const order = salarySettings.jobRoles || [];
+                        const idxA = order.indexOf(a.jobRole || '');
+                        const idxB = order.indexOf(b.jobRole || '');
+                        if (idxA === -1 && idxB === -1) result = (a.jobRole || '').localeCompare(b.jobRole || '');
+                        else if (idxA === -1) result = 1;
+                        else if (idxB === -1) result = -1;
+                        else result = idxA - idxB;
+                    } else if (sortKey === 'department') {
+                        result = (salaryDepts[a.departmentCode] || '').localeCompare(salaryDepts[b.departmentCode] || '');
+                    } else if (sortKey === 'location') {
+                        const order = salarySettings.locations || [];
+                        const idxA = order.indexOf(a.workLocation || '');
+                        const idxB = order.indexOf(b.workLocation || '');
+                        if (idxA === -1 && idxB === -1) result = (a.workLocation || '').localeCompare(b.workLocation || '');
+                        else if (idxA === -1) result = 1;
+                        else if (idxB === -1) result = -1;
+                        else result = idxA - idxB;
+                    }
+                    
+                    if (result !== 0) return result;
+                }
+                
+                return 0;
+            });
+            
+            // 테이블 렌더링
+            renderSalaryTable(employees);
+        }
+        
+        // 테이블 렌더링 함수
+        function renderSalaryTable(employees) {
+            const tbody = document.getElementById('salary-tbody');
+            const isEditMode = salaryEditMode;
+            
+            if (employees.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="22" style="padding: 40px; text-align: center; color: #999;">데이터가 없습니다</td></tr>';
+            } else {
+                tbody.innerHTML = employees.map((emp, index) => {
+                    // 숫자 값으로 변환 (통상임금은 정수로)
+                    const regularWage = Math.floor(Number(emp.regularWage) || 0);
+                    const baseSalary = Number(emp.baseSalary) || 0;
+                    const carAllowance = Number(emp.carAllowance) || 0;
+                    const otherAllowance = Number(emp.otherAllowance) || 0;
+                    const overtimePay = Number(emp.overtimePay) || 0;
+                    const holidayPay = Number(emp.holidayPay) || 0;
+                    const nightPay = Number(emp.nightPay) || 0;
+                    const fixedBonus = Number(emp.fixedBonus) || 0;
+                    
+                    const monthlyTotal = baseSalary + carAllowance + otherAllowance + overtimePay + holidayPay + nightPay + fixedBonus;
+                    const annualSalary = Number(emp.annualSalary) || (monthlyTotal * 12);
+                    
+                    const inputStyle = isEditMode 
+                        ? 'background: #fff;' 
+                        : 'background: #f5f5f5; cursor: not-allowed;';
+                    const disabledAttr = isEditMode ? '' : 'disabled';
+                    
+                    // 통상임금 표시값 (정수로)
+                    const regularWageDisplay = emp.regularWage ? Math.floor(Number(emp.regularWage)) : '';
+                    
+                    return `
+                    <tr style="border-bottom: 1px solid #eee;" data-employee-id="${emp.id}">
+                        <td style="padding: 4px; border: 1px solid #ddd; font-size: 11px; text-align: center; background: #f9f9f9;">${index + 1}</td>
+                        <td style="padding: 4px; border: 1px solid #ddd; font-size: 11px; background: #f9f9f9;">${emp.workLocation || '-'}</td>
+                        <td style="padding: 4px; border: 1px solid #ddd; font-size: 11px; background: #f9f9f9;">${salaryDepts[emp.departmentCode] || '-'}</td>
+                        <td style="padding: 4px; border: 1px solid #ddd; font-size: 11px; font-weight: bold; background: #f9f9f9;">${emp.name || '-'}</td>
+                        <td style="padding: 4px; border: 1px solid #ddd; font-size: 11px; background: #f9f9f9;">${emp.jobTitle || '-'}</td>
+                        <td style="padding: 4px; border: 1px solid #ddd; font-size: 11px; background: #f9f9f9;">${salaryCompanies[emp.companyCode] || '-'}</td>
+                        <td style="padding: 4px; border: 1px solid #ddd; font-size: 11px; background: #f9f9f9;">${emp.hireDate || '-'}</td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 90px; font-size: 11px; padding: 4px; border: none; text-align: right; ${inputStyle}" value="${regularWageDisplay}" data-field="regularWage" onchange="updateSalaryCell('${emp.id}', 'regularWage', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 90px; font-size: 11px; padding: 4px; border: none; text-align: right; ${inputStyle}" value="${emp.baseSalary || ''}" data-field="baseSalary" onchange="updateSalaryCell('${emp.id}', 'baseSalary', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 90px; font-size: 11px; padding: 4px; border: none; text-align: right; ${inputStyle}" value="${emp.carAllowance || ''}" data-field="carAllowance" onchange="updateSalaryCell('${emp.id}', 'carAllowance', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 90px; font-size: 11px; padding: 4px; border: none; text-align: right; ${inputStyle}" value="${emp.otherAllowance || ''}" data-field="otherAllowance" onchange="updateSalaryCell('${emp.id}', 'otherAllowance', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 90px; font-size: 11px; padding: 4px; border: none; text-align: right; ${inputStyle}" value="${emp.overtimePay || ''}" data-field="overtimePay" onchange="updateSalaryCell('${emp.id}', 'overtimePay', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 90px; font-size: 11px; padding: 4px; border: none; text-align: right; ${inputStyle}" value="${emp.holidayPay || ''}" data-field="holidayPay" onchange="updateSalaryCell('${emp.id}', 'holidayPay', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 90px; font-size: 11px; padding: 4px; border: none; text-align: right; ${inputStyle}" value="${emp.nightPay || ''}" data-field="nightPay" onchange="updateSalaryCell('${emp.id}', 'nightPay', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 90px; font-size: 11px; padding: 4px; border: none; text-align: right; ${inputStyle}" value="${emp.fixedBonus || ''}" data-field="fixedBonus" onchange="updateSalaryCell('${emp.id}', 'fixedBonus', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 4px; border: 1px solid #ddd; font-size: 11px; text-align: right; font-weight: bold; background: #fffbcc;">${monthlyTotal.toLocaleString()}</td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 100px; font-size: 11px; padding: 4px; border: none; text-align: right; font-weight: bold; ${inputStyle}" value="${emp.annualSalary || ''}" data-field="annualSalary" onchange="updateSalaryCell('${emp.id}', 'annualSalary', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 90px; font-size: 11px; padding: 4px; border: none; text-align: right; ${inputStyle}" value="${emp.taxFree || ''}" data-field="taxFree" onchange="updateSalaryCell('${emp.id}', 'taxFree', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 60px; font-size: 11px; padding: 4px; border: none; text-align: center; ${inputStyle}" value="${emp.overtimeHours || ''}" data-field="overtimeHours" onchange="updateSalaryCell('${emp.id}', 'overtimeHours', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 60px; font-size: 11px; padding: 4px; border: none; text-align: center; ${inputStyle}" value="${emp.holidayDays || ''}" data-field="holidayDays" onchange="updateSalaryCell('${emp.id}', 'holidayDays', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 60px; font-size: 11px; padding: 4px; border: none; text-align: center; ${inputStyle}" value="${emp.holidayHours || ''}" data-field="holidayHours" onchange="updateSalaryCell('${emp.id}', 'holidayHours', this.value)" ${disabledAttr}></td>
+                        <td style="padding: 0; border: 1px solid #ddd;"><input type="number" class="salary-cell" style="width: 60px; font-size: 11px; padding: 4px; border: none; text-align: center; ${inputStyle}" value="${emp.nightHours || ''}" data-field="nightHours" onchange="updateSalaryCell('${emp.id}', 'nightHours', this.value)" ${disabledAttr}></td>
+                    </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        window.exportSalary = function() {
+            const table = document.getElementById('salary-table');
+            let csv = [];
+            
+            for (let row of table.rows) {
+                let rowData = [];
+                for (let cell of row.cells) {
+                    rowData.push('"' + cell.textContent.replace(/"/g, '""') + '"');
+                }
+                csv.push(rowData.join(','));
+            }
+            
+            const csvContent = csv.join('\n');
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = '연봉정보_' + new Date().toISOString().slice(0,10) + '.csv';
+            link.click();
+        }
+
+        // ===== 연봉정보 엑셀 양식 다운로드 =====
+        window.downloadSalaryTemplate = async function() {
+            showLoading();
+            
+            // 직원 데이터 로드
+            const employeesSnap = await window.getDocs(window.collection(window.db, 'employees'));
+            const employees = [];
+            employeesSnap.forEach(doc => {
+                const emp = doc.data();
+                emp.id = doc.id;
+                employees.push(emp);
+            });
+            
+            // 법인 데이터 로드
+            const companiesSnap = await window.getDocs(window.collection(window.db, 'companies'));
+            const companies = {};
+            companiesSnap.forEach(doc => {
+                const c = doc.data();
+                companies[c.code] = c.name;
+            });
+            
+            // 부서 데이터 로드
+            const deptsSnap = await window.getDocs(window.collection(window.db, 'departments'));
+            const depts = {};
+            deptsSnap.forEach(doc => {
+                const d = doc.data();
+                depts[d.code] = d.name;
+            });
+            
+            // 양식 데이터 생성
+            const template = employees.map(emp => ({
+                '사번': emp.id || '',
+                '성명': emp.name || '',
+                '근무지': emp.workLocation || '',
+                '법인명': companies[emp.companyCode] || '',
+                '입사일': emp.hireDate || '',
+                '직위': emp.jobTitle || '',
+                '부서': depts[emp.departmentCode] || '',
+                '통상임금': emp.regularWage || '',
+                '기본급': emp.baseSalary || '',
+                '차량보조비': emp.carAllowance || '',
+                '기타수당': emp.otherAllowance || '',
+                '연장근로수당': emp.overtimePay || '',
+                '휴일근로수당': emp.holidayPay || '',
+                '야간근로수당': emp.nightPay || '',
+                '고정상여': emp.fixedBonus || '',
+                '연봉': emp.annualSalary || '',
+                '비과세': emp.taxFree || '',
+                '연장근로시간': emp.overtimeHours || '',
+                '휴일근로일': emp.holidayDays || '',
+                '휴일근로시간': emp.holidayHours || '',
+                '야간근로시간': emp.nightHours || ''
+            }));
+            
+            if (template.length === 0) {
+                // 빈 양식 생성
+                template.push({
+                    '사번': '(사번을 입력하세요)',
+                    '성명': '',
+                    '근무지': '',
+                    '법인명': '',
+                    '입사일': '',
+                    '직위': '',
+                    '부서': '',
+                    '통상임금': '',
+                    '기본급': '',
+                    '차량보조비': '',
+                    '기타수당': '',
+                    '연장근로수당': '',
+                    '휴일근로수당': '',
+                    '야간근로수당': '',
+                    '고정상여': '',
+                    '연봉': '',
+                    '비과세': '',
+                    '연장근로시간': '',
+                    '휴일근로일': '',
+                    '휴일근로시간': '',
+                    '야간근로시간': ''
+                });
+            }
+            
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(template);
+            
+            // 컬럼 너비 설정
+            ws['!cols'] = [
+                {wch: 12}, {wch: 10}, {wch: 10}, {wch: 15}, {wch: 12},
+                {wch: 10}, {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12},
+                {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12},
+                {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12}
+            ];
+            
+            XLSX.utils.book_append_sheet(wb, ws, '연봉정보');
+            XLSX.writeFile(wb, 'GA_KOREA_연봉정보_양식.xlsx');
+            
+            hideLoading();
+        }
+
+        // ===== 연봉정보 엑셀 업로드 =====
+        window.handleSalaryExcelUpload = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading();
+
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                console.log('연봉정보 엑셀 데이터:', jsonData);
+
+                if (jsonData.length === 0) {
+                    alert('엑셀 파일에 데이터가 없습니다.');
+                    hideLoading();
+                    return;
+                }
+
+                let updatedCount = 0;
+                let errorCount = 0;
+
+                for (const row of jsonData) {
+                    const empId = row['사번'];
+                    if (!empId || empId === '(사번을 입력하세요)') {
+                        errorCount++;
+                        continue;
+                    }
+
+                    // 해당 직원 데이터 조회
+                    const empDocRef = window.doc(window.db, 'employees', String(empId));
+                    const empDoc = await window.getDoc(empDocRef);
+                    
+                    if (!empDoc.exists()) {
+                        console.warn(`사번 ${empId} 직원을 찾을 수 없습니다.`);
+                        errorCount++;
+                        continue;
+                    }
+
+                    // 연봉정보 업데이트
+                    const updateData = {
+                        regularWage: row['통상임금'] || '',
+                        baseSalary: row['기본급'] || '',
+                        carAllowance: row['차량보조비'] || '',
+                        otherAllowance: row['기타수당'] || '',
+                        overtimePay: row['연장근로수당'] || '',
+                        holidayPay: row['휴일근로수당'] || '',
+                        nightPay: row['야간근로수당'] || '',
+                        fixedBonus: row['고정상여'] || '',
+                        annualSalary: row['연봉'] || '',
+                        taxFree: row['비과세'] || '',
+                        overtimeHours: row['연장근로시간'] || '',
+                        holidayDays: row['휴일근로일'] || '',
+                        holidayHours: row['휴일근로시간'] || '',
+                        nightHours: row['야간근로시간'] || ''
+                    };
+
+                    await window.setDoc(empDocRef, updateData, { merge: true });
+                    updatedCount++;
+                }
+
+                hideLoading();
+                
+                let message = `✅ 연봉정보 업로드 완료!\n\n`;
+                message += `업데이트: ${updatedCount}명\n`;
+                if (errorCount > 0) {
+                    message += `실패: ${errorCount}건 (사번 오류 또는 미등록 직원)`;
+                }
+                alert(message);
+                
+                loadSalaryInfo();
+                
+            } catch (error) {
+                console.error('연봉정보 엑셀 업로드 오류:', error);
+                alert('❌ 업로드 오류: ' + error.message);
+                hideLoading();
+            }
+            
+            // 파일 입력 초기화
+            event.target.value = '';
         }
 
         // ===== 법인 관리 =====
@@ -1853,6 +2941,17 @@
             // 설정값 로드
             await loadSettings();
             
+            // 정렬 기준 로드
+            const settingsDoc = await window.getDoc(window.doc(window.db, 'settings', 'master'));
+            if (settingsDoc.exists()) {
+                const settings = settingsDoc.data();
+                if (settings.rosterSort) {
+                    document.getElementById('roster-sort-1').value = settings.rosterSort.sort1 || '';
+                    document.getElementById('roster-sort-2').value = settings.rosterSort.sort2 || '';
+                    document.getElementById('roster-sort-3').value = settings.rosterSort.sort3 || '';
+                }
+            }
+            
             // 관리자 계정 로드
             const usersSnap = await window.getDocs(window.collection(window.db, 'users'));
             const users = [];
@@ -1920,7 +3019,11 @@
             document.getElementById('jobtitle-list').innerHTML = settings.jobTitles.map((item, idx) => `
                 <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f0f0f0;">
                     <span>${item}</span>
-                    <button onclick="deleteSettingItem('jobTitle', ${idx})" style="background: none; border: none; cursor: pointer; color: #f44336; padding: 2px 6px;">✕</button>
+                    <div>
+                        ${idx > 0 ? `<button onclick="moveSettingItem('jobTitle', ${idx}, -1)" style="background: none; border: none; cursor: pointer; padding: 2px 6px;">↑</button>` : ''}
+                        ${idx < settings.jobTitles.length - 1 ? `<button onclick="moveSettingItem('jobTitle', ${idx}, 1)" style="background: none; border: none; cursor: pointer; padding: 2px 6px;">↓</button>` : ''}
+                        <button onclick="deleteSettingItem('jobTitle', ${idx})" style="background: none; border: none; cursor: pointer; color: #f44336; padding: 2px 6px;">✕</button>
+                    </div>
                 </div>
             `).join('');
             
@@ -1928,7 +3031,11 @@
             document.getElementById('jobrole-list').innerHTML = (settings.jobRoles || []).map((item, idx) => `
                 <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f0f0f0;">
                     <span>${item}</span>
-                    <button onclick="deleteSettingItem('jobRole', ${idx})" style="background: none; border: none; cursor: pointer; color: #f44336; padding: 2px 6px;">✕</button>
+                    <div>
+                        ${idx > 0 ? `<button onclick="moveSettingItem('jobRole', ${idx}, -1)" style="background: none; border: none; cursor: pointer; padding: 2px 6px;">↑</button>` : ''}
+                        ${idx < (settings.jobRoles || []).length - 1 ? `<button onclick="moveSettingItem('jobRole', ${idx}, 1)" style="background: none; border: none; cursor: pointer; padding: 2px 6px;">↓</button>` : ''}
+                        <button onclick="deleteSettingItem('jobRole', ${idx})" style="background: none; border: none; cursor: pointer; color: #f44336; padding: 2px 6px;">✕</button>
+                    </div>
                 </div>
             `).join('');
             
@@ -1936,7 +3043,11 @@
             document.getElementById('location-list').innerHTML = settings.locations.map((item, idx) => `
                 <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #f0f0f0;">
                     <span>${item}</span>
-                    <button onclick="deleteSettingItem('location', ${idx})" style="background: none; border: none; cursor: pointer; color: #f44336; padding: 2px 6px;">✕</button>
+                    <div>
+                        ${idx > 0 ? `<button onclick="moveSettingItem('location', ${idx}, -1)" style="background: none; border: none; cursor: pointer; padding: 2px 6px;">↑</button>` : ''}
+                        ${idx < settings.locations.length - 1 ? `<button onclick="moveSettingItem('location', ${idx}, 1)" style="background: none; border: none; cursor: pointer; padding: 2px 6px;">↓</button>` : ''}
+                        <button onclick="deleteSettingItem('location', ${idx})" style="background: none; border: none; cursor: pointer; color: #f44336; padding: 2px 6px;">✕</button>
+                    </div>
                 </div>
             `).join('');
             
@@ -2010,7 +3121,11 @@
             const settingsDoc = await window.getDoc(window.doc(window.db, 'settings', 'master'));
             const settings = settingsDoc.data();
             
-            const key = 'positions';
+            const key = type === 'position' ? 'positions' : 
+                       type === 'jobTitle' ? 'jobTitles' :
+                       type === 'jobRole' ? 'jobRoles' :
+                       type === 'location' ? 'locations' : 'employmentTypes';
+            
             const newIndex = index + direction;
             
             if (newIndex >= 0 && newIndex < settings[key].length) {
@@ -2020,6 +3135,29 @@
             }
             
             hideLoading();
+        }
+
+
+        window.saveRosterSortSetting = async function() {
+            const sort1 = document.getElementById('roster-sort-1').value;
+            const sort2 = document.getElementById('roster-sort-2').value;
+            const sort3 = document.getElementById('roster-sort-3').value;
+            
+            showLoading();
+            
+            const settingsDoc = await window.getDoc(window.doc(window.db, 'settings', 'master'));
+            const settings = settingsDoc.exists() ? settingsDoc.data() : {};
+            
+            settings.rosterSort = {
+                sort1: sort1,
+                sort2: sort2,
+                sort3: sort3
+            };
+            
+            await window.setDoc(window.doc(window.db, 'settings', 'master'), settings);
+            
+            hideLoading();
+            alert('정렬 기준이 저장되었습니다.');
         }
 
         window.showAddAdminForm = function() {
@@ -2138,6 +3276,733 @@
             await window.deleteDoc(window.doc(window.db, 'users', userId));
             alert('삭제되었습니다.');
             loadAdminManagement();
+        }
+
+        // ===== 조직도 기능 =====
+        let orgChartData = { departments: [], connections: [], style: {} };
+        let contextMenuPosition = { x: 0, y: 0 };
+        let selectedDeptColor = '#1976d2';
+        let allOrgEmployees = [];
+        let draggedEmployee = null;
+        let connectingFrom = null;
+        let connectingFromSide = null;
+        let selectedDeptIndex = null;
+        let editingDeptIndex = null;
+        
+        // 조직도 스타일 설정 (기본값)
+        let orgStyle = {
+            levelHeight: 120,
+            boxWidth: 100,
+            headerFont: 11,
+            memberFont: 10,
+            headerPadding: 6
+        };
+        
+        function getLevelY(level) {
+            return 30 + (level - 1) * orgStyle.levelHeight;
+        }
+
+        // 하위 부서 인원 계산 (연결된 모든 하위 부서 포함)
+        function calculateTotalMembers(deptIndex, visited = new Set()) {
+            if (visited.has(deptIndex)) return 0;
+            visited.add(deptIndex);
+            
+            const dept = orgChartData.departments[deptIndex];
+            if (!dept) return 0;
+            
+            let total = (dept.members || []).length;
+            (dept.teams || []).forEach(team => {
+                total += (team.members || []).length;
+            });
+            
+            (orgChartData.connections || []).forEach(conn => {
+                if (conn.from === deptIndex) {
+                    const toDept = orgChartData.departments[conn.to];
+                    if (toDept && (toDept.level || 1) > (dept.level || 1)) {
+                        total += calculateTotalMembers(conn.to, visited);
+                    }
+                }
+            });
+            
+            return total;
+        }
+
+        // 조직도에 표시된 총 인원 계산
+        function calculateDisplayedTotal() {
+            let total = 0;
+            (orgChartData.departments || []).forEach(dept => {
+                total += (dept.members || []).length;
+                (dept.teams || []).forEach(team => {
+                    total += (team.members || []).length;
+                });
+            });
+            return total;
+        }
+
+        // 조직도 로드
+        async function loadOrgChart() {
+            const today = new Date();
+            const dateStr = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')}`;
+            document.getElementById('org-chart-date').textContent = dateStr;
+            document.getElementById('org-chart-date2').textContent = dateStr;
+            
+            const employeesSnap = await window.getDocs(window.collection(window.db, 'employees'));
+            allOrgEmployees = [];
+            let specialCounts = { '고문': 0, '자문': 0, '휴직': 0 };
+            
+            employeesSnap.forEach(doc => {
+                const emp = doc.data();
+                emp.id = doc.id;
+                allOrgEmployees.push(emp);
+                if (emp.position === '고문') specialCounts['고문']++;
+                if (emp.position === '자문') specialCounts['자문']++;
+                if (emp.workStatus === '휴직') specialCounts['휴직']++;
+            });
+            
+            const specialItems = [];
+            if (specialCounts['고문'] > 0) specialItems.push(`고문(${specialCounts['고문']}명)`);
+            if (specialCounts['자문'] > 0) specialItems.push(`자문(${specialCounts['자문']}명)`);
+            if (specialCounts['휴직'] > 0) specialItems.push(`휴직(${specialCounts['휴직']}명)`);
+            document.getElementById('org-chart-special').textContent = specialItems.length > 0 ? specialItems.join(', ') : '-';
+            
+            try {
+                const orgDoc = await window.getDoc(window.doc(window.db, 'settings', 'orgChart'));
+                if (orgDoc.exists()) {
+                    orgChartData = orgDoc.data();
+                    if (!orgChartData.connections) orgChartData.connections = [];
+                    if (!orgChartData.departments) orgChartData.departments = [];
+                    if (orgChartData.style) {
+                        orgStyle = { ...orgStyle, ...orgChartData.style };
+                    }
+                }
+            } catch (e) {
+                console.log('조직도 데이터 없음');
+            }
+            renderOrgChart();
+        }
+
+        // 조직도 렌더링
+        function renderOrgChart() {
+            const canvas = document.getElementById('org-chart-canvas');
+            const svg = document.getElementById('org-chart-svg');
+            canvas.innerHTML = '';
+            canvas.appendChild(svg);
+            
+            if (orgChartData.departments) {
+                orgChartData.departments.forEach((dept, index) => {
+                    createDeptElement(dept, index);
+                });
+            }
+            renderConnections();
+            
+            document.getElementById('org-chart-total').textContent = calculateDisplayedTotal();
+        }
+
+        // 부서 요소 생성
+        function createDeptElement(dept, index) {
+            const canvas = document.getElementById('org-chart-canvas');
+            const level = dept.level || 1;
+            const isTopLevel = level === 1;
+            
+            // Y 위치: 저장된 y값이 있으면 사용, 없으면 레벨 기준
+            const posY = dept.y !== undefined ? dept.y : getLevelY(level);
+            
+            const totalWithChildren = calculateTotalMembers(index);
+            
+            const deptEl = document.createElement('div');
+            deptEl.className = 'org-dept-box';
+            deptEl.dataset.index = index;
+            deptEl.style.cssText = `
+                position: absolute;
+                left: ${dept.x || 100}px;
+                top: ${posY}px;
+                min-width: ${orgStyle.boxWidth}px;
+                background: white;
+                border: 2px solid ${dept.color};
+                border-radius: 4px;
+                cursor: move;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                z-index: 10;
+            `;
+            
+            // 부서 헤더 (최상위 레벨은 인원수 표시 안함)
+            let html = `
+                <div class="dept-header" style="background: ${dept.color}; color: white; padding: ${orgStyle.headerPadding}px 10px; font-weight: bold; font-size: ${orgStyle.headerFont}px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>${dept.name}</span>
+                    ${!isTopLevel ? `<span style="background: white; color: ${dept.color}; padding: 1px 6px; border-radius: 10px; font-size: ${orgStyle.headerFont - 1}px; margin-left: 8px;">${totalWithChildren}</span>` : ''}
+                </div>
+            `;
+            
+            // 부서 직속 멤버
+            if (dept.members && dept.members.length > 0) {
+                html += `<div class="dept-members" style="padding: 4px 6px; border-bottom: 1px solid #eee;" data-dept-index="${index}" data-team-index="-1">`;
+                dept.members.forEach((m, mi) => {
+                    html += `
+                        <div class="dept-member" style="display: flex; justify-content: space-between; align-items: center; padding: 2px 0; font-size: ${orgStyle.memberFont}px;">
+                            <span style="color: #666; min-width: 30px;">${m.jobTitle || '-'}</span>
+                            <span style="font-weight: 500; flex: 1; text-align: right;">${m.name}</span>
+                            <button onclick="removeMemberFromDept(${index}, ${mi}, -1)" style="background: none; border: none; color: #999; cursor: pointer; font-size: ${orgStyle.memberFont - 1}px; margin-left: 4px;">✕</button>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            } else {
+                html += `<div class="dept-members" style="padding: 4px 6px; min-height: 15px;" data-dept-index="${index}" data-team-index="-1"></div>`;
+            }
+            
+            // 하위 팀들
+            if (dept.teams && dept.teams.length > 0) {
+                dept.teams.forEach((team, ti) => {
+                    html += `
+                        <div class="team-box" style="margin: 3px; border: 1px solid #ddd; border-radius: 3px;">
+                            <div style="background: #f5f5f5; padding: 3px 6px; font-size: ${orgStyle.memberFont}px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                                <span>${team.name}</span>
+                                <span style="color: #666;">${(team.members || []).length}</span>
+                                <button onclick="deleteTeam(${index}, ${ti})" style="background: none; border: none; color: #999; cursor: pointer; font-size: ${orgStyle.memberFont - 1}px; margin-left: 4px;">✕</button>
+                            </div>
+                            <div class="team-members" style="padding: 3px 5px; min-height: 12px;" data-dept-index="${index}" data-team-index="${ti}">
+                    `;
+                    if (team.members && team.members.length > 0) {
+                        team.members.forEach((m, mi) => {
+                            html += `
+                                <div class="dept-member" style="display: flex; justify-content: space-between; align-items: center; padding: 1px 0; font-size: ${orgStyle.memberFont}px;">
+                                    <span style="color: #666; min-width: 30px;">${m.jobTitle || '-'}</span>
+                                    <span style="font-weight: 500; flex: 1; text-align: right;">${m.name}</span>
+                                    <button onclick="removeMemberFromDept(${index}, ${mi}, ${ti})" style="background: none; border: none; color: #999; cursor: pointer; font-size: ${orgStyle.memberFont - 1}px; margin-left: 4px;">✕</button>
+                                </div>
+                            `;
+                        });
+                    }
+                    html += `</div></div>`;
+                });
+            }
+            
+            // 연결점
+            html += `
+                <div class="connect-point connect-top" data-side="top" style="display: none; position: absolute; top: -5px; left: 50%; transform: translateX(-50%); width: 10px; height: 10px; background: #1976d2; border-radius: 50%; cursor: crosshair; z-index: 20;"></div>
+                <div class="connect-point connect-bottom" data-side="bottom" style="display: none; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 10px; height: 10px; background: #1976d2; border-radius: 50%; cursor: crosshair; z-index: 20;"></div>
+                <div class="connect-point connect-left" data-side="left" style="display: none; position: absolute; left: -5px; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; background: #1976d2; border-radius: 50%; cursor: crosshair; z-index: 20;"></div>
+                <div class="connect-point connect-right" data-side="right" style="display: none; position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; background: #1976d2; border-radius: 50%; cursor: crosshair; z-index: 20;"></div>
+            `;
+            
+            deptEl.innerHTML = html;
+            
+            // 마우스 이벤트
+            deptEl.onmouseenter = () => {
+                deptEl.querySelectorAll('.connect-point').forEach(p => p.style.display = 'block');
+            };
+            deptEl.onmouseleave = () => {
+                if (!connectingFrom) {
+                    deptEl.querySelectorAll('.connect-point').forEach(p => p.style.display = 'none');
+                }
+            };
+            
+            // 부서 우클릭
+            deptEl.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                selectedDeptIndex = index;
+                const menu = document.getElementById('dept-context-menu');
+                menu.style.display = 'block';
+                menu.style.left = e.clientX + 'px';
+                menu.style.top = e.clientY + 'px';
+            };
+            
+            // 연결점 클릭
+            deptEl.querySelectorAll('.connect-point').forEach(point => {
+                point.onclick = (e) => {
+                    e.stopPropagation();
+                    const side = point.dataset.side;
+                    if (!connectingFrom) {
+                        connectingFrom = index;
+                        connectingFromSide = side;
+                        point.style.background = '#ff9800';
+                        document.querySelectorAll('.org-dept-box').forEach(box => {
+                            box.querySelectorAll('.connect-point').forEach(p => p.style.display = 'block');
+                        });
+                    } else if (connectingFrom !== index) {
+                        addConnection(connectingFrom, connectingFromSide, index, side);
+                        resetConnecting();
+                    } else {
+                        resetConnecting();
+                    }
+                };
+            });
+            
+            makeDraggable(deptEl, index);
+            
+            // 드롭 영역 설정
+            deptEl.querySelectorAll('.dept-members, .team-members').forEach(area => {
+                area.ondragover = (e) => { e.preventDefault(); area.style.background = '#e3f2fd'; };
+                area.ondragleave = () => { area.style.background = ''; };
+                area.ondrop = (e) => {
+                    e.preventDefault();
+                    area.style.background = '';
+                    if (draggedEmployee) {
+                        const deptIdx = parseInt(area.dataset.deptIndex);
+                        const teamIdx = parseInt(area.dataset.teamIndex);
+                        addMemberToDept(deptIdx, draggedEmployee, teamIdx);
+                    }
+                };
+            });
+            
+            canvas.appendChild(deptEl);
+        }
+
+        // 연결 상태 초기화
+        function resetConnecting() {
+            connectingFrom = null;
+            connectingFromSide = null;
+            document.querySelectorAll('.connect-point').forEach(p => {
+                p.style.background = '#1976d2';
+                p.style.display = 'none';
+            });
+        }
+
+        // 연결 추가
+        function addConnection(fromIndex, fromSide, toIndex, toSide) {
+            if (!orgChartData.connections) orgChartData.connections = [];
+            const exists = orgChartData.connections.some(c => 
+                (c.from === fromIndex && c.to === toIndex) || 
+                (c.from === toIndex && c.to === fromIndex)
+            );
+            if (exists) return;
+            
+            orgChartData.connections.push({ from: fromIndex, fromSide, to: toIndex, toSide });
+            saveOrgChart();
+            renderOrgChart();
+        }
+
+        // 연결선 렌더링 (꺾인 선 지원)
+        function renderConnections() {
+            const svg = document.getElementById('org-chart-svg');
+            svg.innerHTML = '';
+            document.querySelectorAll('.conn-delete-btn').forEach(btn => btn.remove());
+            
+            if (!orgChartData.connections) return;
+            
+            orgChartData.connections.forEach((conn, index) => {
+                const fromDept = document.querySelector(`.org-dept-box[data-index="${conn.from}"]`);
+                const toDept = document.querySelector(`.org-dept-box[data-index="${conn.to}"]`);
+                if (!fromDept || !toDept) return;
+                
+                const fromPos = getConnectionPoint(fromDept, conn.fromSide);
+                const toPos = getConnectionPoint(toDept, conn.toSide);
+                
+                const fromLevel = orgChartData.departments[conn.from].level || 1;
+                const toLevel = orgChartData.departments[conn.to].level || 1;
+                
+                let pathD;
+                let midX, midY;
+                
+                // 같은 레벨이면 직선
+                if (fromLevel === toLevel) {
+                    pathD = `M ${fromPos.x} ${fromPos.y} L ${toPos.x} ${toPos.y}`;
+                    midX = (fromPos.x + toPos.x) / 2;
+                    midY = (fromPos.y + toPos.y) / 2;
+                } else {
+                    // 다른 레벨
+                    const isVertical = (conn.fromSide === 'bottom' && conn.toSide === 'top') || 
+                                      (conn.fromSide === 'top' && conn.toSide === 'bottom');
+                    
+                    if (isVertical) {
+                        // 위/아래 연결: 두 번 꺾임
+                        const verticalMid = (fromPos.y + toPos.y) / 2;
+                        pathD = `M ${fromPos.x} ${fromPos.y} L ${fromPos.x} ${verticalMid} L ${toPos.x} ${verticalMid} L ${toPos.x} ${toPos.y}`;
+                        midX = (fromPos.x + toPos.x) / 2;
+                        midY = verticalMid;
+                    } else {
+                        // 좌/우 연결: 한 번 꺾임
+                        if (conn.fromSide === 'right' || conn.fromSide === 'left') {
+                            pathD = `M ${fromPos.x} ${fromPos.y} L ${toPos.x} ${fromPos.y} L ${toPos.x} ${toPos.y}`;
+                            midX = toPos.x;
+                            midY = (fromPos.y + toPos.y) / 2;
+                        } else {
+                            pathD = `M ${fromPos.x} ${fromPos.y} L ${fromPos.x} ${toPos.y} L ${toPos.x} ${toPos.y}`;
+                            midX = (fromPos.x + toPos.x) / 2;
+                            midY = toPos.y;
+                        }
+                    }
+                }
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathD);
+                path.setAttribute('stroke', '#333');
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('fill', 'none');
+                svg.appendChild(path);
+                
+                // 삭제 버튼
+                const deleteBtn = document.createElement('div');
+                deleteBtn.className = 'conn-delete-btn';
+                deleteBtn.dataset.connIndex = index;
+                deleteBtn.style.cssText = `
+                    position: absolute;
+                    left: ${midX - 10}px;
+                    top: ${midY - 10}px;
+                    width: 20px;
+                    height: 20px;
+                    background: #ff5252;
+                    border-radius: 50%;
+                    display: none;
+                    justify-content: center;
+                    align-items: center;
+                    cursor: pointer;
+                    z-index: 15;
+                    color: white;
+                    font-size: 10px;
+                `;
+                deleteBtn.innerHTML = '🗑';
+                deleteBtn.onclick = () => deleteConnection(index);
+                document.getElementById('org-chart-canvas').appendChild(deleteBtn);
+            });
+            
+            setupConnectionHover();
+        }
+
+        // 연결점 좌표 계산
+        function getConnectionPoint(element, side) {
+            const rect = element.getBoundingClientRect();
+            const canvas = document.getElementById('org-chart-canvas');
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = rect.left - canvasRect.left + canvas.scrollLeft;
+            const y = rect.top - canvasRect.top + canvas.scrollTop;
+            const w = rect.width;
+            const h = rect.height;
+            
+            switch (side) {
+                case 'top': return { x: x + w/2, y: y };
+                case 'bottom': return { x: x + w/2, y: y + h };
+                case 'left': return { x: x, y: y + h/2 };
+                case 'right': return { x: x + w, y: y + h/2 };
+                default: return { x: x + w/2, y: y + h/2 };
+            }
+        }
+
+        // 연결선 호버
+        function setupConnectionHover() {
+            const canvas = document.getElementById('org-chart-canvas');
+            canvas.onmousemove = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left + canvas.scrollLeft;
+                const mouseY = e.clientY - rect.top + canvas.scrollTop;
+                
+                document.querySelectorAll('.conn-delete-btn').forEach(btn => {
+                    const btnX = parseFloat(btn.style.left) + 10;
+                    const btnY = parseFloat(btn.style.top) + 10;
+                    const dist = Math.sqrt(Math.pow(mouseX - btnX, 2) + Math.pow(mouseY - btnY, 2));
+                    btn.style.display = dist < 40 ? 'flex' : 'none';
+                });
+            };
+        }
+
+        window.deleteConnection = function(index) {
+            orgChartData.connections.splice(index, 1);
+            saveOrgChart();
+            renderOrgChart();
+        }
+
+        // 드래그 (X, Y 모두 이동 가능)
+        function makeDraggable(element, deptIndex) {
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
+            
+            element.onmousedown = (e) => {
+                if (e.target.tagName === 'BUTTON' || e.target.closest('.dept-members') || e.target.closest('.team-members') || e.target.classList.contains('connect-point')) return;
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                initialX = element.offsetLeft;
+                initialY = element.offsetTop;
+                element.style.zIndex = 1000;
+            };
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                element.style.left = (initialX + dx) + 'px';
+                element.style.top = (initialY + dy) + 'px';
+                renderConnections();
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    element.style.zIndex = 10;
+                    orgChartData.departments[deptIndex].x = element.offsetLeft;
+                    orgChartData.departments[deptIndex].y = element.offsetTop;
+                    saveOrgChart();
+                }
+            });
+        }
+
+        // 빈공간 컨텍스트 메뉴
+        window.showOrgChartContextMenu = function(e) {
+            e.preventDefault();
+            if (e.target.closest('.org-dept-box')) return;
+            
+            const menu = document.getElementById('org-context-menu');
+            const canvas = document.getElementById('org-chart-canvas');
+            const rect = canvas.getBoundingClientRect();
+            contextMenuPosition = {
+                x: e.clientX - rect.left + canvas.scrollLeft,
+                y: e.clientY - rect.top + canvas.scrollTop
+            };
+            menu.style.display = 'block';
+            menu.style.left = e.clientX + 'px';
+            menu.style.top = e.clientY + 'px';
+        }
+
+        // 메뉴 닫기
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#org-context-menu')) {
+                document.getElementById('org-context-menu').style.display = 'none';
+            }
+            if (!e.target.closest('#dept-context-menu')) {
+                document.getElementById('dept-context-menu').style.display = 'none';
+            }
+            if (connectingFrom !== null && !e.target.classList.contains('connect-point')) {
+                resetConnecting();
+            }
+        });
+
+        // 부서 생성 모달
+        window.showCreateDeptModal = function() {
+            document.getElementById('org-context-menu').style.display = 'none';
+            document.getElementById('create-dept-modal').style.display = 'flex';
+            document.getElementById('dept-modal-title').textContent = '부서 생성';
+            document.getElementById('new-dept-name').value = '';
+            document.getElementById('new-dept-level').value = '1';
+            editingDeptIndex = null;
+            selectDeptColor('#1976d2');
+        }
+
+        window.closeCreateDeptModal = function() {
+            document.getElementById('create-dept-modal').style.display = 'none';
+        }
+
+        window.selectDeptColor = function(color) {
+            selectedDeptColor = color;
+            document.querySelectorAll('.color-option').forEach(el => {
+                el.style.border = el.dataset.color === color ? '2px solid #333' : '2px solid transparent';
+            });
+        }
+
+        window.createDeptBox = function() {
+            const name = document.getElementById('new-dept-name').value.trim();
+            const level = parseInt(document.getElementById('new-dept-level').value);
+            if (!name) { alert('부서명을 입력해주세요.'); return; }
+            
+            if (editingDeptIndex !== null) {
+                orgChartData.departments[editingDeptIndex].name = name;
+                orgChartData.departments[editingDeptIndex].level = level;
+                orgChartData.departments[editingDeptIndex].color = selectedDeptColor;
+            } else {
+                const newDept = {
+                    name, color: selectedDeptColor, level,
+                    x: contextMenuPosition.x,
+                    y: contextMenuPosition.y,
+                    members: [], teams: []
+                };
+                if (!orgChartData.departments) orgChartData.departments = [];
+                orgChartData.departments.push(newDept);
+            }
+            
+            saveOrgChart();
+            renderOrgChart();
+            closeCreateDeptModal();
+        }
+
+        // 부서 수정
+        window.editDept = function() {
+            document.getElementById('dept-context-menu').style.display = 'none';
+            if (selectedDeptIndex === null) return;
+            
+            const dept = orgChartData.departments[selectedDeptIndex];
+            editingDeptIndex = selectedDeptIndex;
+            
+            document.getElementById('create-dept-modal').style.display = 'flex';
+            document.getElementById('dept-modal-title').textContent = '부서 수정';
+            document.getElementById('new-dept-name').value = dept.name;
+            document.getElementById('new-dept-level').value = dept.level || 1;
+            selectDeptColor(dept.color);
+        }
+
+        // 부서 삭제
+        window.deleteSelectedDept = function() {
+            document.getElementById('dept-context-menu').style.display = 'none';
+            if (selectedDeptIndex === null) return;
+            if (!confirm('이 부서를 삭제하시겠습니까?')) return;
+            
+            orgChartData.connections = (orgChartData.connections || []).filter(c => c.from !== selectedDeptIndex && c.to !== selectedDeptIndex);
+            orgChartData.connections = orgChartData.connections.map(c => ({
+                ...c,
+                from: c.from > selectedDeptIndex ? c.from - 1 : c.from,
+                to: c.to > selectedDeptIndex ? c.to - 1 : c.to
+            }));
+            
+            orgChartData.departments.splice(selectedDeptIndex, 1);
+            saveOrgChart();
+            renderOrgChart();
+        }
+
+        window.deleteDept = function(index) {
+            selectedDeptIndex = index;
+            deleteSelectedDept();
+        }
+
+        // 하위 팀 생성
+        window.showCreateTeamModal = function() {
+            document.getElementById('dept-context-menu').style.display = 'none';
+            document.getElementById('create-team-modal').style.display = 'flex';
+            document.getElementById('new-team-name').value = '';
+        }
+
+        window.closeCreateTeamModal = function() {
+            document.getElementById('create-team-modal').style.display = 'none';
+        }
+
+        window.createTeam = function() {
+            const name = document.getElementById('new-team-name').value.trim();
+            if (!name) { alert('팀명을 입력해주세요.'); return; }
+            if (selectedDeptIndex === null) return;
+            
+            if (!orgChartData.departments[selectedDeptIndex].teams) {
+                orgChartData.departments[selectedDeptIndex].teams = [];
+            }
+            orgChartData.departments[selectedDeptIndex].teams.push({ name, members: [] });
+            
+            saveOrgChart();
+            renderOrgChart();
+            closeCreateTeamModal();
+        }
+
+        window.deleteTeam = function(deptIndex, teamIndex) {
+            if (!confirm('이 팀을 삭제하시겠습니까?')) return;
+            orgChartData.departments[deptIndex].teams.splice(teamIndex, 1);
+            saveOrgChart();
+            renderOrgChart();
+        }
+
+        // 양식 수정 모달
+        window.showOrgStyleModal = function() {
+            document.getElementById('org-style-modal').style.display = 'flex';
+            document.getElementById('style-level-height').value = orgStyle.levelHeight;
+            document.getElementById('style-level-height-val').textContent = orgStyle.levelHeight;
+            document.getElementById('style-box-width').value = orgStyle.boxWidth;
+            document.getElementById('style-box-width-val').textContent = orgStyle.boxWidth;
+            document.getElementById('style-header-font').value = orgStyle.headerFont;
+            document.getElementById('style-header-font-val').textContent = orgStyle.headerFont;
+            document.getElementById('style-member-font').value = orgStyle.memberFont;
+            document.getElementById('style-member-font-val').textContent = orgStyle.memberFont;
+            document.getElementById('style-header-padding').value = orgStyle.headerPadding;
+            document.getElementById('style-header-padding-val').textContent = orgStyle.headerPadding;
+        }
+
+        window.closeOrgStyleModal = function() {
+            document.getElementById('org-style-modal').style.display = 'none';
+        }
+
+        window.applyOrgStyle = function() {
+            orgStyle.levelHeight = parseInt(document.getElementById('style-level-height').value);
+            orgStyle.boxWidth = parseInt(document.getElementById('style-box-width').value);
+            orgStyle.headerFont = parseInt(document.getElementById('style-header-font').value);
+            orgStyle.memberFont = parseInt(document.getElementById('style-member-font').value);
+            orgStyle.headerPadding = parseInt(document.getElementById('style-header-padding').value);
+            
+            orgChartData.style = orgStyle;
+            saveOrgChart();
+            renderOrgChart();
+            closeOrgStyleModal();
+        }
+
+        // 임직원 패널
+        window.showEmployeePanel = function() {
+            document.getElementById('org-context-menu').style.display = 'none';
+            document.getElementById('org-chart-employee-panel').style.display = 'flex';
+            renderOrgEmployeeList();
+        }
+
+        window.hideEmployeePanel = function() {
+            document.getElementById('org-chart-employee-panel').style.display = 'none';
+        }
+
+        function renderOrgEmployeeList() {
+            const search = document.getElementById('org-employee-search').value.toLowerCase();
+            const list = document.getElementById('org-employee-list');
+            
+            const assignedIds = new Set();
+            if (orgChartData.departments) {
+                orgChartData.departments.forEach(dept => {
+                    (dept.members || []).forEach(m => assignedIds.add(m.id));
+                    (dept.teams || []).forEach(team => {
+                        (team.members || []).forEach(m => assignedIds.add(m.id));
+                    });
+                });
+            }
+            
+            const filtered = allOrgEmployees.filter(emp => {
+                const matchSearch = !search || (emp.name && emp.name.toLowerCase().includes(search));
+                return matchSearch && !assignedIds.has(emp.id);
+            });
+            
+            list.innerHTML = filtered.map(emp => `
+                <div class="org-employee-item" draggable="true" 
+                     ondragstart="startDragEmployee('${emp.id}', '${emp.name}', '${emp.jobTitle || ''}')"
+                     style="padding: 8px; background: white; margin-bottom: 4px; border-radius: 4px; cursor: grab; border: 1px solid #ddd;">
+                    <div style="font-weight: 500; font-size: 12px;">${emp.name}</div>
+                    <div style="font-size: 10px; color: #666;">${emp.jobTitle || '-'} / ${emp.position || '-'}</div>
+                </div>
+            `).join('');
+            
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">배치 가능한 직원이 없습니다</div>';
+            }
+        }
+
+        window.filterOrgEmployees = function() { renderOrgEmployeeList(); }
+
+        window.startDragEmployee = function(id, name, jobTitle) {
+            draggedEmployee = { id, name, jobTitle };
+        }
+
+        function addMemberToDept(deptIndex, employee, teamIndex = -1) {
+            const dept = orgChartData.departments[deptIndex];
+            
+            if (teamIndex === -1) {
+                if (!dept.members) dept.members = [];
+                if (dept.members.some(m => m.id === employee.id)) return;
+                dept.members.push(employee);
+            } else {
+                if (!dept.teams[teamIndex].members) dept.teams[teamIndex].members = [];
+                if (dept.teams[teamIndex].members.some(m => m.id === employee.id)) return;
+                dept.teams[teamIndex].members.push(employee);
+            }
+            
+            saveOrgChart();
+            renderOrgChart();
+            renderOrgEmployeeList();
+            draggedEmployee = null;
+        }
+
+        window.removeMemberFromDept = function(deptIndex, memberIndex, teamIndex = -1) {
+            if (teamIndex === -1) {
+                orgChartData.departments[deptIndex].members.splice(memberIndex, 1);
+            } else {
+                orgChartData.departments[deptIndex].teams[teamIndex].members.splice(memberIndex, 1);
+            }
+            saveOrgChart();
+            renderOrgChart();
+            renderOrgEmployeeList();
+        }
+
+        async function saveOrgChart() {
+            try {
+                await window.setDoc(window.doc(window.db, 'settings', 'orgChart'), orgChartData);
+            } catch (e) {
+                console.error('조직도 저장 실패:', e);
+            }
         }
     </script>
 </body>
