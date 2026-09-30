@@ -39,3 +39,63 @@ input,textarea,select{border:1px solid #d7dfeb;border-radius:6px;background:whit
 @media(max-width:800px){.sub-row .row-label{padding-left:22px}.check-dates input[type=date]{width:118px}}
 .check-row:has(:checked) label{text-decoration:none}
 .check-row:has(:checked) .check-name{text-decoration:line-through}
+
+/* ===== v3: 상단 진행률 + 넓은 일정표 + 하위 업무 트리 ===== */
+.project-heading{margin-bottom:16px;align-items:center}
+.project-heading h1{margin-bottom:4px}
+.project-heading p{margin-bottom:6px}
+.heading-progress{flex:1;max-width:340px;min-width:220px;margin-left:auto;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:white}
+.hp-top{display:flex;align-items:baseline;justify-content:space-between;font-size:12px;color:#6e7d91;font-weight:600}
+.hp-top strong{font-size:22px;color:var(--ink);font-weight:750}
+.hp-top em{font-style:normal;font-size:13px;margin-left:1px;color:#6e7d91}
+.heading-progress .progress-track{margin-top:6px;height:6px}
+.heading-progress small{display:block;margin-top:6px;font-size:11px;color:#7a879b}
+.board-content{max-height:calc(100dvh - 250px);min-height:420px}
+.timeline{--label:280px}
+.date-header{min-height:44px}
+.date-header .day-cell{font-size:9px;gap:1px;min-height:44px}
+.date-header .day-cell b{font-size:11px}
+.date-header .today b{width:auto;min-width:18px;padding:0 2px;border-radius:4px}
+.day-cell.month-start{border-left:1px solid #c9d4e6}
+.day-cell{min-height:52px}
+
+/* 상위 업무 */
+.timeline-row.task-row{min-height:52px;background:#fbfcff;border-top:1px solid #e3e9f3}
+.task-row .row-label{background:#fbfcff;border-left:4px solid var(--bar) !important;padding:8px 10px 8px 10px;gap:8px}
+.task-row .task-name{font-size:13.5px;font-weight:700;color:#14233a}
+.task-row .task-sub{font-size:10.5px;gap:6px}
+.task-pct{font-weight:700;color:var(--bar-ink)}
+.task-row .owner-pill{display:inline-block}
+.task-row .day-cell{min-height:52px}
+.bar{top:11px;height:30px;border-width:1.5px;font-size:11.5px;font-weight:650;padding:0 8px;box-shadow:0 1px 2px rgba(20,35,58,.08)}
+.bar-fill{opacity:.32}
+.bar span{font-weight:650}
+.trunk-start{position:absolute;top:41px;bottom:0;width:0;border-left:1.5px solid #9fb3d1;z-index:1;pointer-events:none}
+
+/* 하위 업무 (트리 연결) */
+.timeline-row.sub-row{min-height:30px;background:white}
+.sub-row .day-cell{min-height:30px}
+.sub-row .row-label{padding:0 10px 0 38px;gap:6px;background:white;font-size:12px;color:#44546a;cursor:default;position:sticky}
+.sub-row .tree{position:absolute;left:18px;top:0;bottom:0;width:14px;pointer-events:none}
+.sub-row .tree:before{content:'';position:absolute;left:0;top:0;bottom:0;border-left:1.5px solid #9fb3d1}
+.sub-row.last .tree:before{bottom:50%}
+.sub-row .tree:after{content:'';position:absolute;left:0;top:50%;width:14px;border-top:1.5px solid #9fb3d1}
+.sub-toggle{width:16px;height:16px;border:1.5px solid #9fb0c8;border-radius:4px;background:white;color:white;font-size:10px;font-weight:700;display:grid;place-items:center;padding:0;cursor:pointer;flex-shrink:0}
+.sub-toggle:hover{border-color:var(--blue);box-shadow:0 0 0 3px #e3ecfd}
+.sub-toggle.done{background:#2f9e78;border-color:#2f9e78}
+.sub-toggle.late{border-color:#e39a5b}
+.sub-open{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:none;border:0;padding:6px 0;cursor:pointer;text-align:left;color:inherit;font:inherit}
+.sub-open:hover .sub-name{color:var(--blue);text-decoration:underline}
+.sub-notes{font-size:10px;color:#396bbb;background:#eaf1fd;border-radius:3px;padding:1px 4px;flex-shrink:0}
+.sub-link{position:absolute;top:0;height:50%;border-left:1.5px solid #9fb3d1;border-bottom:1.5px solid #9fb3d1;border-bottom-left-radius:6px;z-index:1;pointer-events:none}
+.sub-row:not(.last) .days:before{content:none}
+.sub-bar{top:8px;height:14px;display:flex;align-items:center;overflow:hidden;font-size:9.5px;color:#46618a;padding:0 5px;white-space:nowrap}
+.sub-bar span{overflow:hidden;text-overflow:ellipsis}
+.sub-bar.done{color:#1f7a5c}
+.sub-bar.late{color:#a35a1c}
+.done-mark{top:6px;width:16px;height:16px;font-size:9px}
+.done-toggle{flex-direction:row !important;align-items:center;gap:8px;font-weight:600}
+.done-toggle input{width:16px;height:16px;accent-color:#2f9e78}
+@media(max-width:800px){.timeline{--label:170px}.heading-progress{max-width:none;width:100%;margin-left:0}.sub-row .row-label{padding-left:30px}.sub-row .tree{left:12px}}
+.sub-trunk{position:absolute;top:0;bottom:0;width:0;border-left:1.5px solid #9fb3d1;z-index:1;pointer-events:none}
+.date-header .day-cell span.mon{color:var(--blue);font-weight:700;white-space:nowrap;font-size:9px}
