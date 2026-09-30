@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { validateTask, dayRange, summary, normalizeEmails, assertRevision, safeUrl } from '../model.mjs';
+const task = {title:'업무',phase:'준비',owner:'',start:'2026-09-30',end:'2026-10-02',status:'doing',percent:40,blocker:'',checklist:[],logs:[],link:''};
+test('담당자 미지정과 월 경계를 지원한다',()=>{assert.equal(validateTask(task).owner,''); assert.deepEqual(dayRange('2026-09-30','2026-10-02'),['2026-09-30','2026-10-01','2026-10-02']);});
+test('역전 날짜와 실제 없는 날짜를 거부한다',()=>{assert.throws(()=>validateTask({...task,end:'2026-09-29'}));assert.throws(()=>validateTask({...task,start:'2026-02-30'}));});
+test('날짜가 지났어도 완료로 간주하지 않는다',()=>{assert.equal(summary([task], '2026-10-03').done,0);assert.equal(summary([task], '2026-10-03').late,1);});
+test('완료만 100%, 다른 상태는 100% 미만으로 정규화한다',()=>{assert.equal(validateTask({...task,status:'done'}).percent,100);assert.equal(validateTask({...task,percent:100}).percent,99);});
+test('막힘 상태는 이유가 필요하다',()=>assert.throws(()=>validateTask({...task,status:'blocked'})));
+test('참여 이메일은 정규화하고 중복을 제거한다',()=>assert.deepEqual(normalizeEmails('A@EXAMPLE.com, a@example.com\nb@example.com'),['a@example.com','b@example.com']));
+test('다른 사람이 저장한 최신 버전을 덮어쓰지 않는다',()=>{assert.throws(()=>assertRevision(2,1),/수정/);assert.doesNotThrow(()=>assertRevision(2,2));});
+test('위험한 자료 링크를 거부한다',()=>{assert.equal(safeUrl('javascript:alert(1)'), '');assert.equal(safeUrl('https://example.com/'), 'https://example.com/');});
