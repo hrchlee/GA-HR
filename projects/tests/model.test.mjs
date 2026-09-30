@@ -5,7 +5,11 @@ const task = {title:'업무',phase:'준비',owner:'',start:'2026-09-30',end:'202
 test('담당자 미지정과 월 경계를 지원한다',()=>{assert.equal(validateTask(task).owner,''); assert.deepEqual(dayRange('2026-09-30','2026-10-02'),['2026-09-30','2026-10-01','2026-10-02']);});
 test('역전 날짜와 실제 없는 날짜를 거부한다',()=>{assert.throws(()=>validateTask({...task,end:'2026-09-29'}));assert.throws(()=>validateTask({...task,start:'2026-02-30'}));});
 test('날짜가 지났어도 완료로 간주하지 않는다',()=>{assert.equal(summary([task], '2026-10-03').done,0);assert.equal(summary([task], '2026-10-03').late,1);});
-test('완료만 100%, 다른 상태는 100% 미만으로 정규화한다',()=>{assert.equal(validateTask({...task,status:'done'}).percent,100);assert.equal(validateTask({...task,percent:100}).percent,99);});
+test('하위 업무가 없으면 완료만 100%, 나머지는 0%',()=>{assert.equal(validateTask({...task,status:'done'}).percent,100);assert.equal(validateTask({...task,percent:100}).percent,0);});
+const sub=(text,done,start='2026-09-30',end='2026-10-01')=>({id:text,text,done,start,end});
+test('하위 업무 4개 중 3개 완료면 75%, 진행 중',()=>{const r=validateTask({...task,status:'todo',checklist:[sub('a',1),sub('b',1),sub('c',1),sub('d',0)]});assert.equal(r.percent,75);assert.equal(r.status,'doing');assert.ok(r.checklist[0].doneAt);assert.equal(r.checklist[3].doneAt,'');});
+test('하위 업무가 모두 완료되면 자동 완료, 하나라도 남으면 완료 불가',()=>{assert.equal(validateTask({...task,checklist:[sub('a',1),sub('b',1)]}).status,'done');const r=validateTask({...task,status:'done',checklist:[sub('a',1),sub('b',0)]});assert.equal(r.status,'doing');assert.equal(r.percent,50);});
+test('하위 업무 일정은 업무 기간 안이어야 한다',()=>{assert.throws(()=>validateTask({...task,checklist:[sub('a',0,'2026-09-29','2026-10-01')]}),/업무 기간/);const r=validateTask({...task,checklist:[{id:'x',text:'날짜 없음',done:false}]});assert.equal(r.checklist[0].start,task.start);});
 test('막힘 상태는 이유가 필요하다',()=>assert.throws(()=>validateTask({...task,status:'blocked'})));
 test('참여 이메일은 정규화하고 중복을 제거한다',()=>assert.deepEqual(normalizeEmails('A@EXAMPLE.com, a@example.com\nb@example.com'),['a@example.com','b@example.com']));
 test('다른 사람이 저장한 최신 버전을 덮어쓰지 않는다',()=>{assert.throws(()=>assertRevision(2,1),/수정/);assert.doesNotThrow(()=>assertRevision(2,2));});

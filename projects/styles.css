@@ -8,3 +8,34 @@ input,textarea,select{border:1px solid #d7dfeb;border-radius:6px;background:whit
 .search-label{flex-direction:row;align-items:center}.mobile-projects{display:none}.project-nav{word-break:keep-all}.metric small{word-break:keep-all}.task-name{font-size:14px}@media(max-width:800px){.mobile-projects{display:flex;gap:8px;margin-bottom:20px}.mobile-projects select{font-size:13px;width:100%;flex:1}.timeline{--label:155px}.row-label{padding:10px 8px}.task-name{font-size:12px}.task-sub{gap:4px;font-size:10px}.row-label .status-icon{display:none}.board-top{gap:0}.metrics{margin-bottom:20px}.metric small{font-size:11px}.topbar .connection{font-size:11px}}
 
 .top-actions{display:flex;align-items:center;gap:10px}.text-link{font-size:13px;color:var(--blue);text-decoration:underline}@media(max-width:800px){.topbar{height:auto;min-height:70px;gap:6px;flex-wrap:wrap;padding:10px 16px}.top-actions{gap:6px;flex-wrap:wrap}.top-actions .connection{width:100%}.top-actions .btn{font-size:11px}.brand small{font-size:10px;letter-spacing:0}}
+
+/* 하위 업무 자동 진행률 */
+.progress-auto{display:flex;flex-direction:column;justify-content:center;gap:2px;font-size:14px;font-weight:600;color:var(--ink)}
+.progress-auto-title b{color:var(--blue);font-size:16px;margin-left:4px}
+.progress-auto .progress-track{margin-top:6px}
+.progress-auto .progress-track i{width:0;transition:width .2s}
+.progress-auto small{font-weight:400;font-size:12px;color:#7a879b;margin-top:4px}
+.check-row{flex-wrap:wrap}
+.check-text{display:flex;flex-direction:column;gap:2px}
+.done-at{font-size:11px;color:#1f7a5c;text-decoration:none;display:inline-block}
+.check-row:has(:checked) .done-at{text-decoration:none}
+.check-dates{display:flex;align-items:center;gap:4px;font-size:12px;color:#8594a8}
+.check-dates input[type=date]{padding:4px 6px;font-size:12px;width:128px}
+
+/* 일정표 하위 업무 행 */
+.timeline-row.sub-row{min-height:34px}
+.sub-row .day-cell{min-height:34px}
+.sub-row .row-label{padding:6px 12px 6px 34px;gap:7px;font-size:12px;color:#55657b;background:white;justify-content:flex-start}
+.sub-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub-name.is-done{color:#8a97a8;text-decoration:line-through}
+.sub-late{font-size:10px;font-weight:600}
+.sub-check{width:14px;height:14px;border:1.5px solid #b9c5d6;border-radius:4px;flex-shrink:0;display:grid;place-items:center;font-size:9px;color:white;background:white}
+.sub-check.done{background:#2f9e78;border-color:#2f9e78}
+.sub-check.late{border-color:#e39a5b}
+.sub-bar{position:absolute;top:10px;height:14px;border-radius:4px;border:1px solid #c5d4ee;background:#e9f0fc;z-index:2;padding:0;cursor:pointer;min-width:8px}
+.sub-bar.done{background:#dff3eb;border-color:#a9d3c5}
+.sub-bar.late{background:#fdf0e4;border-color:#efc195}
+.done-mark{position:absolute;top:8px;width:18px;height:18px;border-radius:50%;background:#2f9e78;color:white;font-size:10px;font-weight:700;display:grid;place-items:center;z-index:3;pointer-events:none;box-shadow:0 0 0 2px white}
+@media(max-width:800px){.sub-row .row-label{padding-left:22px}.check-dates input[type=date]{width:118px}}
+.check-row:has(:checked) label{text-decoration:none}
+.check-row:has(:checked) .check-name{text-decoration:line-through}
